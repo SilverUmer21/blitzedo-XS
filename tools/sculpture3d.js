@@ -244,7 +244,7 @@ function emitPlatform() {
         const len2 = Math.max(0, Math.round((0.75 + 0.45 * hash3(hh, 3, 0, 243)) * D2 / h2));   // mostly half blocks under the big ones
         for (let q = 0; q < len2; q++) {
           const Z = z1 - h2 / 2 - q * h2;
-          blocks.push({ X: xs, Y: ys, Z, s: h2, f: tierFaces(hh * 7 + q), t: tintOf(hh, q, 2, Z) });
+          blocks.push({ X: xs, Y: ys, Z, s: h2, f: tierFaces(hh * 7 + q), t: q === len2 - 1 && hash3(hh, 9, 0, 245) < 0.5 ? 1.0 : tintOf(hh, q, 2, Z) });
         }
         // tier 3: 3.75-cubes under each, again 2x2
         const z2 = z1 - len2 * h2;
@@ -254,7 +254,7 @@ function emitPlatform() {
           const len3 = hash3(h3, 1, 0, 242) < 0.3 ? 1 + Math.floor(hash3(h3, 2, 0, 244) * 2) : 0;   // only a few small tips
           for (let q = 0; q < len3; q++) {
             const Z = z2 - q4 / 2 - q * q4;
-            blocks.push({ X: xt, Y: yt, Z, s: q4, f: tierFaces(h3 * 5 + q), t: tintOf(h3, q, 3, Z) });
+            blocks.push({ X: xt, Y: yt, Z, s: q4, f: tierFaces(h3 * 5 + q), t: q === len3 - 1 ? 1.0 : tintOf(h3, q, 3, Z) });   // the tip is light stone, so it catches the red from below
           }
         }
       }
@@ -393,13 +393,19 @@ for (const [, list] of groups) {
 
 /* ---------- the gate's light: smooth glowing panels on the recess's back wall and floor, brightest low and in the middle ---------- */
 {
-  const tex = (() => {
-    const c = document.createElement('canvas'); c.width = 64; c.height = 128;
-    const g = c.getContext('2d');
-    const gr = g.createRadialGradient(32, 118, 4, 32, 96, 110);
-    gr.addColorStop(0, '#ff7a52'); gr.addColorStop(0.35, '#ff3420'); gr.addColorStop(1, '#c4140e');
-    g.fillStyle = gr; g.fillRect(0, 0, 64, 128);
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  const tex = (() => {                                                  // pixel-art glow: chunky texels, brightest low and centre
+    const c = document.createElement('canvas'); c.width = 8; c.height = 14;
+    const g = c.getContext('2d'), img = g.createImageData(8, 14);
+    for (let y = 0; y < 14; y++) for (let x = 0; x < 8; x++) {
+      const h = 1 - Math.hypot((x - 3.5) / 5, (y - 12) / 13), n = hash3(x, y, 0, 77);
+      const k = Math.min(1, Math.max(0, h * 1.1 + (n - 0.5) * 0.35));
+      const o = (y * 8 + x) * 4;
+      img.data[o] = 190 + 65 * k; img.data[o + 1] = 18 + 90 * k * k; img.data[o + 2] = 12 + 60 * k * k; img.data[o + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.flipY = false;
+    return t;
   })();
   const arch = new THREE.Shape();
   const w = DOOR.x1 - DOOR.x0, top = DOOR.zRect, ax0 = DOOR.archX0 - DOOR.cx, ax1 = DOOR.archX1 - DOOR.cx;
@@ -436,34 +442,32 @@ for (const [, list] of groups) {
     const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz);
     m.castShadow = true; g.add(m); return m;
   };
-  // legs mid-stride and rounded boots
-  add(new THREE.CapsuleGeometry(0.75, 2.2, 4, 10), shade, -0.7, 2.0, -0.9, 0, 0, 0.28);
-  add(new THREE.CapsuleGeometry(0.75, 2.2, 4, 10), ivory, 0.9, 2.0, 0.9, 0, 0, -0.32);
-  add(new THREE.SphereGeometry(0.95, 12, 8), shade, -1.3, 0.55, -0.9).scale.set(1.35, 0.6, 0.95);
-  add(new THREE.SphereGeometry(0.95, 12, 8), ivory, 1.6, 0.55, 0.9).scale.set(1.35, 0.6, 0.95);
-  // body: a short rounded torso
-  add(new THREE.CapsuleGeometry(2.45, 1.9, 6, 16), ivory, 0, 6.3, 0).scale.set(1, 1, 0.9);
-  // arms swinging
-  add(new THREE.CapsuleGeometry(0.7, 2.4, 4, 8), ivory, 1.9, 6.4, 2.7, 0.6, 0, -0.75);
-  add(new THREE.CapsuleGeometry(0.68, 2.2, 4, 8), shade, -1.7, 6.5, -2.6, -0.5, 0, 0.65);
-  // big round helmet with a black visor facing the viewer's right
-  add(new THREE.SphereGeometry(4.0, 28, 20), ivory, 0.2, 12.4, 0).scale.set(1, 0.98, 0.98);
-  add(new RoundedBoxGeometry(1.4, 2.8, 2.6, 2, 0.5), black, 3.75, 12.6, 1.0, 0, 0.45, 0);
+  // legs mid-stride and boots
+  add(new THREE.BoxGeometry(1.7, 3.6, 1.8), shade, -0.8, 1.9, -1.0, 0, 0, 0.18);
+  add(new THREE.BoxGeometry(1.7, 3.6, 1.8), ivory, 0.9, 1.9, 1.0, 0, 0, -0.22);
+  // body: a white tunic, wider at the hem
+  add(new THREE.CylinderGeometry(2.3, 3.0, 5.2, 12), ivory, 0, 6.2, 0);
+  // arms
+  add(new THREE.BoxGeometry(1.3, 3.8, 1.4), ivory, 2.6, 6.2, 1.8, 0.35, 0, -0.45);
+  add(new THREE.BoxGeometry(1.3, 3.6, 1.4), shade, -2.4, 6.3, -1.6, -0.3, 0, 0.4);
+  // helmet: a rounded box about as wide as the shoulders, black visor on the viewer's side
+  add(new RoundedBoxGeometry(5.8, 5.4, 5.8, 3, 1.8), ivory, 0.2, 11.4, 0);
+  add(new RoundedBoxGeometry(0.8, 2.2, 2.6, 2, 0.3), black, 3.05, 11.6, 0.9, 0, 0.15, 0);
   // scarf: a collar and a long notched tail streaming behind
-  add(new THREE.TorusGeometry(2.25, 0.75, 8, 24), red, 0.1, 8.7, 0, Math.PI / 2, 0, 0);
+  add(new THREE.TorusGeometry(2.3, 0.7, 8, 24), red, 0.1, 8.75, 0, Math.PI / 2, 0, 0);
   const tail = new THREE.Shape();
   tail.moveTo(0, 0.6); tail.lineTo(-5, 2.0); tail.lineTo(-11.5, 2.4); tail.lineTo(-9.6, 0.9); tail.lineTo(-12.4, -0.6);
   tail.lineTo(-8.6, -1.0); tail.lineTo(-4.4, -1.6); tail.lineTo(0, -1.4); tail.closePath();
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.4, bevelEnabled: false }), red, -1.4, 8.9, -0.4, 0, 0.35, -0.05);
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.3, bevelEnabled: false }), redDark, -1.2, 8.3, -1.2, 0, 0.55, 0.08).scale.set(0.75, 0.7, 1);
-  g.scale.setScalar(0.92);
+  g.scale.setScalar(1.3);
   g.rotation.y = -0.55;                                                   // turned toward the viewer, looking down the stairs
   g.position.set(45, LANDING_Z, 52.5);
   scene.add(g);
 })();
 
 /* ---------- lights: red is the main light; the white fill is almost nothing ---------- */
-scene.add(new THREE.AmbientLight(0xffffff, 0.12));
+scene.add(new THREE.AmbientLight(0xffffff, 0.15));
 scene.add(new THREE.HemisphereLight(0xb8b4c0, 0x120c0c, 0.1));
 const fill = new THREE.DirectionalLight(0xc8ccd8, 0.5);              // keeps the left faces a touch lighter than the right
 fill.position.set(-80, 70, 160);
@@ -482,8 +486,8 @@ scene.add(key, key.target);
 
 const doorInner = new THREE.PointLight(0xff2a1e, 420, 70, 2);         // glow inside the recess
 doorInner.position.set(DOOR.cx, 22, 36);
-const doorMouth = new THREE.PointLight(0xff3018, 1400, 60, 2);         // spill onto the floor, doorstep and nearby steps only
-doorMouth.position.set(DOOR.cx, 12, 52);
+const doorMouth = new THREE.PointLight(0xff3018, 700, 30, 2);          // short reach: lights the doorstep, not the stairs         // spill onto the floor, doorstep and nearby steps only
+doorMouth.position.set(DOOR.cx + 4, 8, 50);
 scene.add(doorInner, doorMouth);
 
 const stairLight = new THREE.PointLight(0xff2a1c, 380, 75, 2);       // straight above the stairs: the treads glow, the risers stay dark
@@ -503,10 +507,10 @@ const stripLight = (X, Y, Z, w, h, face, intensity) => {                  // sce
   scene.add(l);
 };
 stripLight(29, 46, 97.5, 2, 45, 'front', 2.5);                                // left edge of the stem above the landing
-stripLight(133, 46, 37.5, 4, 75, 'front', 5);                               // front edge at the right end of the bowl
-stripLight(137, 30, 37.5, 4, 75, 'right', 3);                               // right end face, along its front edge
-edgeLight(67, 100, -55, 260, 110);
-edgeLight(20, 90, -40, 140, 70);                                     // low red glow under the island: the cone's tips catch it
+stripLight(134, 46, 37.5, 1.5, 75, 'front', 3);                               // front edge at the right end of the bowl
+                               // right end face, along its front edge
+edgeLight(70, 100, -130, 30000, 0);                                      // below the island: the hanging tips catch red from underneath
+edgeLight(160, 90, -120, 9000, 0);                                     // low red glow under the island: the cone's tips catch it
 edgeLight(160, 80, -45, 90, 60);
 edgeLight(-45, 70, -40, 80, 55);
 
@@ -537,38 +541,57 @@ const W = Math.ceil((maxX - minX) * UNIT_PX), H = Math.ceil((maxY - minY) * UNIT
 // world (scene X, Y, Z) -> output pixel, used by tools to align the render with the reference
 window.__project = (X, Y, Z) => { const v = new THREE.Vector3(X, Z, Y).project(camera); return [(v.x + 1) / 2 * W, (1 - v.y) / 2 * H]; };
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+// Pixel-native render: draw the scene at 1/PIX resolution (one render pixel is about one stone texel), quantise it to a small
+// charcoal / red palette, add a chunky glow, then scale up with no smoothing. Every gradient and edge becomes stepped pixels.
+const PIX = 6;
+const w = Math.ceil(W / PIX), h = Math.ceil(H / PIX);
+const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1);
-renderer.setSize(W, H, false);
+renderer.setSize(w, h, false);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 document.body.appendChild(renderer.domElement);
 renderer.render(scene, camera);
 
-/* soft red glow: blur the saturated red pixels and add them back (stone and explorer stay clean) */
+const low = document.createElement('canvas');
+low.width = w; low.height = h;
+const lctx = low.getContext('2d');
+lctx.drawImage(renderer.domElement, 0, 0);
+{
+  const img = lctx.getImageData(0, 0, w, h), d = img.data;
+  // palette: charcoal ramp (warm neutral) and a red ramp; each pixel snaps to the nearest entry
+  const PAL = [[0, 0, 0], [10, 10, 10], [20, 19, 19], [31, 30, 29], [44, 42, 41], [60, 57, 55], [80, 76, 72],
+    [52, 8, 8], [92, 12, 12], [140, 18, 18], [196, 26, 24], [236, 44, 34], [255, 96, 70], [255, 170, 140],
+    [246, 241, 230], [200, 194, 182], [140, 134, 124]];
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue;
+    let best = 0, bd = 1e9;
+    for (let p = 0; p < PAL.length; p++) {
+      const q = PAL[p], dr = d[i] - q[0], dg = d[i + 1] - q[1], db = d[i + 2] - q[2], dd = 2 * dr * dr + 4 * dg * dg + 3 * db * db;
+      if (dd < bd) { bd = dd; best = p; }
+    }
+    d[i] = PAL[best][0]; d[i + 1] = PAL[best][1]; d[i + 2] = PAL[best][2];
+  }
+  lctx.putImageData(img, 0, 0);
+  // chunky glow from the brightest reds (the gate and the lit tops), also at low resolution
+  const t = document.createElement('canvas'); t.width = w; t.height = h;
+  const g = t.getContext('2d'); g.putImageData(img, 0, 0);
+  const gi = g.getImageData(0, 0, w, h), gd = gi.data;
+  for (let i = 0; i < gd.length; i += 4) if (!(gd[i] > 220 && gd[i] > gd[i + 1] * 2)) gd[i + 3] = 0;
+  g.putImageData(gi, 0, 0);
+  const t2 = document.createElement('canvas'); t2.width = w; t2.height = h;
+  const g2 = t2.getContext('2d'); g2.filter = 'blur(2px)'; g2.drawImage(t, 0, 0);
+  const bi = g2.getImageData(0, 0, w, h), bd2 = bi.data;
+  for (let i = 0; i < bd2.length; i += 4) bd2[i + 3] = bd2[i + 3] > 70 ? Math.min(255, (bd2[i + 3] >> 5) << 5) : 0;   // stepped glow
+  g2.putImageData(bi, 0, 0);
+  lctx.globalCompositeOperation = 'screen'; lctx.globalAlpha = 0.35; lctx.drawImage(t2, 0, 0);
+  lctx.globalCompositeOperation = 'source-over'; lctx.globalAlpha = 1;
+}
 const out = document.createElement('canvas');
 out.width = W; out.height = H;
 const octx = out.getContext('2d');
-octx.drawImage(renderer.domElement, 0, 0);
-{
-  const t = document.createElement('canvas');
-  t.width = W; t.height = H;
-  const g = t.getContext('2d');
-  g.drawImage(out, 0, 0);
-  const img = g.getImageData(0, 0, W, H), d = img.data;
-  for (let i = 0; i < d.length; i += 4) {
-    if (!(d[i] > 200 && d[i] > d[i + 1] * 2.2)) d[i + 3] = 0;   // only the brightest reds (the gate, the lit treads) bloom
-  }
-  g.putImageData(img, 0, 0);
-  const t2 = document.createElement('canvas');
-  t2.width = W; t2.height = H;
-  const g2 = t2.getContext('2d');
-  g2.filter = 'blur(' + Math.round(UNIT_PX * 1.6) + 'px)';
-  g2.drawImage(t, 0, 0);
-  octx.globalCompositeOperation = 'screen';
-  octx.globalAlpha = 0.45;
-  octx.drawImage(t2, 0, 0);
-}
+octx.imageSmoothingEnabled = false;
+octx.drawImage(low, 0, 0, w * PIX, h * PIX);
 
 window.__sculptureSize = [W, H];
 window.__sculptureCanvas = out;
