@@ -45,12 +45,9 @@ const JF = BODY_Y1 / G;                            // cells in the depth of the 
 const STEM = { x0: 24, x1: 51, h: 108 };
 const BOWL = { x0: 42, x1: 114, h: 72, rTop: 36, rBot: 24 };
 const LANDING_Z = 45;
-const PLAT = { x0: -12, x1: 132, y0: -12, y1: 48 };
-const PLAT_CX = (PLAT.x0 + PLAT.x1) / 2, PLAT_CY = (PLAT.y0 + PLAT.y1) / 2;
-const PLAT_AX = (PLAT.x1 - PLAT.x0) / 2, PLAT_AY = (PLAT.y1 - PLAT.y0) / 2;
-const RIM_M = 0.74;
-const CELL = 12;                                   // foundation top cube
-
+const CELL = 15;                                   // foundation top cube; tiers below are CELL/2 and CELL/4
+const PLAT = { x0: -15, x1: 135, y0: -27, y1: 48 };   // cell boundaries line up with the letter (x) and the stairs' front edge (y = 33)
+const PLAT_CX = 60, PLAT_CY = 10.5, PLAT_AX = 75, PLAT_AY = 37.5;
 const inCircle = (x, z, cx, cz, r) => (x - cx) ** 2 + (z - cz) ** 2 <= r * r;
 function inLetter(X, Z) {
   if (X >= STEM.x0 && X < STEM.x1 && Z >= 0 && Z < STEM.h) return true;
@@ -68,12 +65,6 @@ function inDoorOpening(X, Z) {
   if (Z < DOOR.zRect) return true;
   return inCircle(X, Z, DOOR.cx, DOOR.zRect, DOOR.r);
 }
-function platM(x, y) {
-  const u = Math.abs(x - PLAT_CX) / PLAT_AX, v = Math.abs(y - PLAT_CY) / PLAT_AY;
-  return Math.pow(u ** 7 + v ** 7, 1 / 7);
-}
-const inFootprint = (x, y) => x > -4 && x < 120 && y > -4 && y < 36;   // cells under the letter, stairs and doorstep stay flat
-
 /* ---------- blocks ---------- */
 // block: { X, Y, Z (centre, scene units), s (size), f: [6 face tokens], t (brightness tint) }
 // face order matches BoxGeometry: +x, -x, +y(up), -y, +z(front, scene +Y), -z
@@ -145,7 +136,7 @@ function emitLetter() {
     for (let a = -1; a <= n; a++) for (let b = -1; b <= n; b++) for (let c = -1; c <= n; c++) if (has(i + a, j + b, k + c) && (a < 0 || b < 0 || c < 0 || a >= n || b >= n || c >= n)) occ++;
     const faceCells = 6 * n * n + 12 * n + 8;
     const ao = 1 - Math.max(0, occ / faceCells - 0.5);
-    blocks.push({ X, Y, Z, s, f, t: (0.16 + 1.0 * Math.pow(hash3(i, j, k, 300), 1.2)) * Math.max(0.4, ao) });
+    blocks.push({ X, Y, Z, s, f, t: (hash3(i, j, k, 303) < 0.3 ? 0.04 : 0.45 + 0.8 * hash3(i, j, k, 300)) * Math.max(0.4, ao) });
   };
   const M = 3;                                 // merge aligned 3x3x3 cell groups into 9-unit cubes
   for (const [key] of grid) {
@@ -168,74 +159,83 @@ function emitLetter() {
   }
 }
 
-/* ----- floating foundation: 12-unit rim cubes, then 6- and 3-unit cubes tapering to points ----- */
+/* ----- floating foundation: a bowl of cubes. Top layer 15-unit cubes in a regular grid; below them
+ *       7.5- and 3.75-unit cubes step down along a smooth bowl profile ----- */
+function bowlDepth(x, y) {
+  const u = (x - PLAT_CX) / PLAT_AX, v = (y - PLAT_CY) / PLAT_AY;
+  const r = Math.min(1, Math.pow(u ** 4 + v ** 4, 0.25));          // rounded-rectangle distance from the centre
+  return 17 + 52 * Math.pow(1 - r * r, 0.85);                         // rim ~17 deep, centre ~70: a bowl
+}
 const tierFaces = (h) => {
   const f = baseFaces();
   f[0] = cv(h, 0, 1, 1); f[4] = cv(h, 1, 1, 2); f[2] = cv(h, 2, 1, 3);
   return f;
 };
 const shadeDepth = (Z) => 1 - 0.35 * Math.min(1, Math.max(0, -Z / 70));
+const darkCube = (a, b, c) => hash3(a, b, c, 302) < 0.34;                  // some cubes are near-black stone, so tops alternate red / black
+const tintOf = (a, b, c, Z) => (darkCube(a, b, c) ? 0.03 : 0.45 + 0.8 * hash3(a, b, c, 301)) * shadeDepth(Z);
 function emitPlatform() {
-  for (let ci = Math.floor(PLAT.x0 / CELL); ci < Math.ceil(PLAT.x1 / CELL); ci++) {
-    for (let cj = Math.floor(PLAT.y0 / CELL); cj < Math.ceil(PLAT.y1 / CELL); cj++) {
-      const x = (ci + 0.5) * CELL, y = (cj + 0.5) * CELL;
-      const m = platM(x, y);
-      if (m + (vnoise(x, y, 0, 24, 1) - 0.5) * 0.16 > 1) continue;
-      const r = hash3(ci, cj, 0, 2), core = 1 - m;
-      const onRim = m > RIM_M && !inFootprint(x, y);
+  const ci0 = Math.round(PLAT.x0 / CELL), ci1 = Math.round(PLAT.x1 / CELL) - 1;
+  const cj0 = Math.floor((PLAT.y0 - 3) / CELL) + 1, cj1 = cj0 + Math.round((PLAT.y1 - PLAT.y0) / CELL) - 1;
+  for (let ci = ci0; ci <= ci1; ci++) {
+    for (let cj = cj0; cj <= cj1; cj++) {
+      const x = ci * CELL + CELL / 2, y = 3 + (cj - 1) * CELL + CELL / 2 + CELL * 0;   // front row starts at y = 33
+      const r = hash3(ci, cj, 0, 2);
+      const border = ci === ci0 || ci === ci1 || cj === cj0 || cj === cj1;
+      const flat = y > 0 && y < 33 && x > -10 && x < 125;                    // under the letter, the stairs and the doorstep
       let top = 0;
-      if (onRim) top = r < 0.34 ? -6 : (r > 0.62 && x > 30 ? 6 : 0);                 // rim cubes stand at different heights
-      const H = 24 + 72 * Math.pow(core, 1.3) * (0.7 + 0.5 * r);                      // total hang (inverted pyramid)
-      let rem = H - CELL;
-      const extra = Math.floor(rem * 0.3 / CELL);
-      const n12 = 1 + extra;
-      rem -= extra * CELL;
-      for (let q = 0; q < n12; q++) {
-        if (q > 0 && hash3(ci, cj, q, 235) < 0.1) continue;
+      if (border && !flat) top = r < 0.2 ? -CELL / 2 : r > 0.8 ? CELL / 2 : 0; // a few rim cubes stand higher or lower
+      const jit = 0.86 + 0.28 * hash3(ci, cj, 1, 4);
+      const D = bowlDepth(x, y) * jit;
+      const n1 = 1 + Math.floor(Math.max(0, D - CELL) / 38);
+      // tier 1: 15-cubes
+      for (let q = 0; q < n1; q++) {
         const Z = top - CELL / 2 - q * CELL;
         const f = tierFaces(ci * 31 + cj * 7 + q);
-        if (q === 0 && x > DOOR.x0 && x < DOOR.x1 && y > DOOR.recessY && y < BODY_Y1) f[2] = 'd0';   // door floor glows
-        blocks.push({ X: x, Y: y, Z, s: CELL, f, t: (0.16 + 1.0 * Math.pow(hash3(ci, cj, q, 301), 1.2)) * shadeDepth(Z) });
+        if (q === 0 && x > DOOR.x0 && x < DOOR.x1 && y > 0 && y < 30) f[2] = 'd0';   // door floor glows
+        blocks.push({ X: x, Y: y, Z, s: CELL, f, t: tintOf(ci, cj, q, Z) });
       }
-      const z12 = top - n12 * CELL;
-      if (rem < 3) continue;
+      const z1 = top - n1 * CELL;
+      // tier 2: 7.5-cubes in a 2x2 pattern, depth read from the bowl profile at each sub-column
+      const h2 = CELL / 2, q4 = CELL / 4;
       for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
-        const X6 = x - 3 + a * 6, Y6 = y - 3 + b * 6, h6 = ci * 977 + cj * 131 + a * 17 + b * 5;
-        const len6 = Math.floor(rem * 0.62 / 6 * (0.5 + 0.9 * hash3(h6, 0, 0, 240)));
-        for (let q = 0; q < len6; q++) {
-          const Z = z12 - 3 - q * 6;
-          blocks.push({ X: X6, Y: Y6, Z, s: 6, f: tierFaces(h6 * 7 + q), t: (0.16 + 1.0 * Math.pow(hash3(h6, q, 0, 302), 1.2)) * shadeDepth(Z) });
+        const xs = x - q4 + a * h2, ys = y - q4 + b * h2, hh = ci * 977 + cj * 131 + a * 17 + b * 5;
+        const D2 = bowlDepth(xs, ys) * (0.72 + 0.5 * hash3(hh, 0, 0, 240)) - n1 * CELL;
+        const len2 = Math.max(0, Math.round(0.62 * D2 / h2));
+        for (let q = 0; q < len2; q++) {
+          const Z = z1 - h2 / 2 - q * h2;
+          blocks.push({ X: xs, Y: ys, Z, s: h2, f: tierFaces(hh * 7 + q), t: tintOf(hh, q, 2, Z) });
         }
-        const z6 = z12 - len6 * 6, rem2 = rem - len6 * 6;
+        // tier 3: 3.75-cubes under each, again 2x2
+        const z2 = z1 - len2 * h2;
         for (let c = 0; c < 2; c++) for (let d = 0; d < 2; d++) {
-          const h3 = h6 * 13 + c * 3 + d, len3 = Math.floor(Math.max(0, rem2) / 3 * (0.35 + 0.9 * hash3(h3, 0, 0, 241)));
+          const xt = xs - q4 / 2 + c * q4, yt = ys - q4 / 2 + d * q4, h3 = hh * 13 + c * 3 + d;
+          const D3 = bowlDepth(xt, yt) * (0.62 + 0.8 * hash3(h3, 0, 0, 241)) - n1 * CELL - len2 * h2;
+          const len3 = Math.min(5, Math.max(0, Math.round(1.0 * D3 / q4)));
           for (let q = 0; q < len3; q++) {
-            const Z = z6 - 1.5 - q * 3;
-            blocks.push({ X: X6 - 1.5 + c * 3, Y: Y6 - 1.5 + d * 3, Z, s: 3, f: tierFaces(h3 * 5 + q), t: (0.16 + 1.0 * Math.pow(hash3(h3, q, 0, 303), 1.2)) * shadeDepth(Z) });
+            const Z = z2 - q4 / 2 - q * q4;
+            blocks.push({ X: xt, Y: yt, Z, s: q4, f: tierFaces(h3 * 5 + q), t: tintOf(h3, q, 3, Z) });
           }
         }
       }
-      // a few lone raised cubes on the island top, clear of the letter
-      if (!inFootprint(x, y) && m < 0.9 && m > 0.45 && hash3(ci, cj, 0, 250) > 0.88) {
-        const sz = hash3(ci, cj, 1, 251) > 0.5 ? 6 : 3;
-        blocks.push({ X: x + 2, Y: y - 2, Z: top + sz / 2, s: sz, f: tierFaces(ci * 3 + cj), t: 0.9 });
-      }
     }
   }
+  // a lone cube sitting on the island, right-hand back corner
+  blocks.push({ X: 128, Y: -10, Z: 3.75, s: 7.5, f: tierFaces(77), t: 0.9 });
 }
 
 /* ----- loose floating cubes ----- */
 const LOOSE = [
   // x, y, z (centre), size
-  [-20, 52, -28, 12], [10, 58, -48, 6], [46, 60, -76, 12], [80, 60, -80, 6],
-  [104, 58, -52, 12], [130, 44, -30, 9], [26, 62, -66, 6], [92, 60, -40, 9]
+  [-30, 50, -26, 11.25], [-6, 60, -46, 7.5], [38, 66, -74, 15], [88, 66, -72, 7.5],
+  [122, 58, -46, 15], [150, 38, -28, 11.25], [64, 74, -88, 7.5], [20, 66, -64, 7.5]
 ];
 function emitLoose() {
   LOOSE.forEach(([X, Y, Z, s], n) => blocks.push({ X, Y, Z, s, f: tierFaces(900 + n), t: 0.85 }));
 }
 
 /* ---------- chunky chipped-stone pixel textures ---------- */
-function texelsFor(s) { return s <= 3 ? 6 : s <= 6 ? 8 : s <= 9 ? 9 : 12; }
+function texelsFor(s) { return s <= 4 ? 6 : s <= 8 ? 8 : s <= 10 ? 9 : s <= 12 ? 12 : 14; }
 const texCache = new Map();
 function makeTexture(kind, variant, n) {
   const key = kind + variant + '_' + n;
@@ -249,7 +249,7 @@ function makeTexture(kind, variant, n) {
   // Voronoi chips: each texel belongs to its nearest site; each site has its own brightness
   const sites = [];
   const count = Math.max(4, Math.round(n * n / 9));
-  for (let i = 0; i < count; i++) sites.push({ x: rnd(i, 0, 1) * n, y: rnd(i, 1, 2) * n, v: 0.38 + 0.8 * Math.pow(rnd(i, 2, 3), 1.3) });
+  for (let i = 0; i < count; i++) sites.push({ x: rnd(i, 0, 1) * n, y: rnd(i, 1, 2) * n, v: 0.55 + 0.5 * Math.pow(rnd(i, 2, 3), 1.2) });
   const owner = new Int16Array(n * n);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
     let best = 0, bd = 1e9;
@@ -261,15 +261,15 @@ function makeTexture(kind, variant, n) {
       const o = owner[y * n + x];
       let f = sites[o].v;
       const edge = (x > 0 && owner[y * n + x - 1] !== o) || (y > 0 && owner[(y - 1) * n + x] !== o);
-      if (edge && rnd(x, y, 4) < 0.7) f *= 0.45;                           // cracks between chips
-      if (rnd(x, y, 5) < 0.03) f *= 0.5;                                   // pits
-      if (rnd(x, y, 6) < 0.04) f *= 1.35;                                  // chalky flecks
+      if (edge && rnd(x, y, 4) < 0.55) f *= 0.62;                           // cracks between chips
+      if (rnd(x, y, 5) < 0.02) f *= 0.6;                                   // pits
+      if (rnd(x, y, 6) < 0.025) f *= 1.25;                                  // chalky flecks
       // bevel: lit top-left edges, shaded bottom-right
-      if (y === 0) f *= 1.9;
-      if (x === 0) f *= 1.35;
-      if (y === n - 1) f *= 0.55;
-      if (x === n - 1) f *= 0.65;
-      const v = Math.max(0, Math.min(255, 150 * f));
+      if (y === 0) f *= 1.7;
+      if (x === 0) f *= 1.25;
+      if (y === n - 1) f *= 0.6;
+      if (x === n - 1) f *= 0.7;
+      const v = Math.max(0, Math.min(255, 138 * f));
       const p = (y * n + x) * 4;
       img.data[p] = v; img.data[p + 1] = v * 0.985; img.data[p + 2] = v * 0.96; img.data[p + 3] = 255;
     }
@@ -315,6 +315,7 @@ for (const b of blocks) {
   groups.get(key).push(b);
 }
 const geoCache = new Map();
+const darkCubes = [];
 const col = new THREE.Color();
 const dummy = new THREE.Object3D();
 for (const [, list] of groups) {
@@ -326,39 +327,64 @@ for (const [, list] of groups) {
     dummy.position.set(b.X, b.Z, b.Y);
     dummy.updateMatrix();
     mesh.setMatrixAt(i, dummy.matrix);
-    col.setScalar(Math.min(1.3, b.t));
+    if (b.t < 0.1) {                                                        // near-black stone: sits in the red key's shadow (below), so its top shows the grey fill
+      col.setScalar(1.0);
+      darkCubes.push(b);
+    } else col.setScalar(Math.min(1.3, b.t));
     mesh.setColorAt(i, col);
   });
   mesh.castShadow = true; mesh.receiveShadow = true;
   scene.add(mesh);
 }
 
+/* invisible plates just above the near-black cubes: they cast a shadow from the key light only */
+{
+  const plate = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }), darkCubes.length);
+  darkCubes.forEach((b, i) => {
+    dummy.position.set(b.X, b.Z + b.s / 2 + 0.7, b.Y);
+    dummy.scale.set(b.s * 1.02, 0.4, b.s * 1.02);
+    dummy.updateMatrix();
+    plate.setMatrixAt(i, dummy.matrix);
+  });
+  dummy.scale.set(1, 1, 1);
+  plate.castShadow = true;
+  scene.add(plate);
+}
+
 /* ---------- explorer (self-lit ivory so the red light does not tint him) ---------- */
 (function explorer() {
   const g = new THREE.Group();
-  const ivory = new THREE.MeshStandardMaterial({ color: 0x8a867c, roughness: 0.6, emissive: 0xf0ebe0, emissiveIntensity: 0.62 });
-  const ivoryShade = new THREE.MeshStandardMaterial({ color: 0x6c685f, roughness: 0.7, emissive: 0xd0c9ba, emissiveIntensity: 0.5 });
-  const red = new THREE.MeshStandardMaterial({ color: 0xe5262b, roughness: 0.7, emissive: 0xc01a1e, emissiveIntensity: 0.55, side: THREE.DoubleSide });
+  // bright ivory, self-lit so the red light does not tint him; a darker twin gives the form some shading
+  const ivory = new THREE.MeshStandardMaterial({ color: 0xa09b90, roughness: 0.55, emissive: 0xf6f1e6, emissiveIntensity: 0.78 });
+  const ivoryShade = new THREE.MeshStandardMaterial({ color: 0x77736a, roughness: 0.7, emissive: 0xd8d1c2, emissiveIntensity: 0.6 });
+  const red = new THREE.MeshStandardMaterial({ color: 0xe5262b, roughness: 0.7, emissive: 0xd01c20, emissiveIntensity: 0.6, side: THREE.DoubleSide });
+  const redDark = new THREE.MeshStandardMaterial({ color: 0x8a1014, roughness: 0.8, emissive: 0x6a0a0e, emissiveIntensity: 0.6, side: THREE.DoubleSide });
   const dark = new THREE.MeshStandardMaterial({ color: 0x0b0b0a, roughness: 0.4 });
   const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => {
     const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz);
     m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
   };
-  add(new THREE.CapsuleGeometry(0.85, 3.6, 4, 10), ivoryShade, -0.3, 2.6, -1.3);
-  add(new THREE.CapsuleGeometry(0.85, 3.6, 4, 10), ivory, 0.9, 2.6, 1.3);
-  add(new THREE.SphereGeometry(1.0, 12, 8), ivoryShade, -0.1, 0.55, -1.3).scale.set(1.3, 0.6, 0.9);
-  add(new THREE.SphereGeometry(1.0, 12, 8), ivory, 1.3, 0.55, 1.3).scale.set(1.3, 0.6, 0.9);
-  add(new THREE.CylinderGeometry(2.3, 3.0, 6.6, 18), ivory, 0.3, 7.6, 0);
-  add(new THREE.CylinderGeometry(2.5, 2.5, 0.5, 16), red, 0.3, 4.6, 0).scale.set(0.9, 1, 0.9);
-  add(new THREE.CapsuleGeometry(0.7, 3.0, 4, 8), ivory, 2.3, 8.0, 2.6, 0.35, 0, -0.9);
-  add(new THREE.CapsuleGeometry(0.65, 2.6, 4, 8), ivoryShade, 1.3, 8.2, -2.6, -0.2, 0, -0.3);
-  add(new RoundedBoxGeometry(6.4, 6.8, 6.4, 4, 2.4), ivory, 0.6, 14.6, 0);
-  add(new THREE.BoxGeometry(0.5, 2.6, 2.4), dark, 3.8, 14.9, 1.0);
-  add(new THREE.TorusGeometry(2.9, 0.75, 8, 24), red, 0.5, 10.9, 0, Math.PI / 2, 0, 0).scale.set(1, 1, 0.9);
+  // short legs and small feet
+  add(new THREE.CapsuleGeometry(0.9, 2.0, 4, 10), ivoryShade, -0.4, 2.2, -1.4);
+  add(new THREE.CapsuleGeometry(0.9, 2.0, 4, 10), ivory, 0.9, 2.2, 1.4);
+  add(new THREE.SphereGeometry(1.0, 12, 8), ivoryShade, 0.1, 0.5, -1.4).scale.set(1.3, 0.55, 0.9);
+  add(new THREE.SphereGeometry(1.0, 12, 8), ivory, 1.5, 0.5, 1.4).scale.set(1.3, 0.55, 0.9);
+  // bell-shaped tunic with a red lining at the hem
+  add(new THREE.CylinderGeometry(2.1, 3.5, 6.8, 20), ivory, 0.3, 7.0, 0);
+  add(new THREE.CylinderGeometry(3.4, 3.4, 0.45, 20), red, 0.3, 3.9, 0).scale.set(0.96, 1, 0.96);
+  // arms: one reaching toward the stairs, one tucked back
+  add(new THREE.CapsuleGeometry(0.7, 2.8, 4, 8), ivory, 2.4, 7.6, 2.5, 0.4, 0, -0.95);
+  add(new THREE.CapsuleGeometry(0.65, 2.4, 4, 8), ivoryShade, 1.2, 7.9, -2.5, -0.2, 0, -0.3);
+  // large rounded head with a dark visor on the side facing the stairs
+  add(new RoundedBoxGeometry(6.8, 6.4, 6.6, 4, 2.7), ivory, 0.7, 13.2, 0);
+  add(new THREE.BoxGeometry(0.5, 2.5, 2.4), dark, 4.15, 13.5, 0.9);
+  // scarf: collar, a short knot, and a notched tail trailing left
+  add(new THREE.TorusGeometry(2.7, 0.7, 8, 24), red, 0.5, 10.1, 0, Math.PI / 2, 0, 0).scale.set(1, 1, 0.92);
   const tail = new THREE.Shape();
-  tail.moveTo(0, 0.4); tail.lineTo(-4.5, 2.6); tail.lineTo(-10.5, 4.6); tail.lineTo(-8.8, 2.6); tail.lineTo(-11.4, 1.6);
-  tail.lineTo(-8.4, 0.2); tail.lineTo(-4.2, -2.0); tail.lineTo(0, -2.6); tail.closePath();
-  add(new THREE.ExtrudeGeometry(tail, { depth: 0.4, bevelEnabled: false }), red, -1.2, 11.4, -0.2, 0, 0.15, 0);
+  tail.moveTo(0, 0.5); tail.lineTo(-4.8, 2.9); tail.lineTo(-11.0, 4.9); tail.lineTo(-9.2, 2.8); tail.lineTo(-12.0, 1.7);
+  tail.lineTo(-8.8, 0.2); tail.lineTo(-4.4, -2.2); tail.lineTo(0, -2.8); tail.closePath();
+  add(new THREE.ExtrudeGeometry(tail, { depth: 0.45, bevelEnabled: false }), red, -1.2, 10.5, -0.2, 0, 0.15, 0);
+  add(new THREE.ExtrudeGeometry(tail, { depth: 0.3, bevelEnabled: false }), redDark, -1.0, 9.9, -0.9, 0, 0.35, 0.05).scale.set(0.7, 0.6, 1);
   g.position.set(28.5, LANDING_Z, 30);
   scene.add(g);
 })();
@@ -366,7 +392,7 @@ for (const [, list] of groups) {
 /* ---------- lights: red is the main light; the white fill is almost nothing ---------- */
 scene.add(new THREE.AmbientLight(0xffffff, 0.1));
 scene.add(new THREE.HemisphereLight(0xb8b4c0, 0x120c0c, 0.1));
-const fill = new THREE.DirectionalLight(0xc8ccd8, 0.38);              // keeps the left faces a touch lighter than the right
+const fill = new THREE.DirectionalLight(0xc8ccd8, 0.32);              // keeps the left faces a touch lighter than the right
 fill.position.set(-80, 70, 160);
 scene.add(fill);
 
@@ -385,7 +411,7 @@ scene.add(rim);
 
 const doorInner = new THREE.PointLight(0xff2a1e, 900, 70, 2);         // glow inside the recess
 doorInner.position.set(DOOR.cx, 22, 18);
-const doorMouth = new THREE.PointLight(0xff2418, 1700, 65, 2);        // spill onto floor, steps and wall
+const doorMouth = new THREE.PointLight(0xff2418, 1200, 60, 2);        // spill onto floor, steps and wall
 doorMouth.position.set(DOOR.cx, 14, 36);
 scene.add(doorInner, doorMouth);
 
@@ -398,9 +424,9 @@ const edgeLight = (X, Y, Z, intensity, dist) => {
 for (const z of [92, 70, 48]) edgeLight(19, 31, z, 150, 26);          // left edge of the stem
 for (const z of [60, 36, 14]) edgeLight(117, 34, z, 130, 26);         // right end of the bowl
 edgeLight(48, 30, 100, 90, 22);
-edgeLight(56, 76, -52, 330, 80);                                      // low red glow under the island: the stalactite tips catch it
-edgeLight(112, 62, -44, 240, 70);
-edgeLight(6, 62, -38, 200, 60);                                       // top front corner of the stem
+edgeLight(58, 74, -52, 140, 70);                                      // low red glow under the island: the stalactite tips catch it
+edgeLight(112, 62, -36, 90, 55);
+edgeLight(6, 62, -30, 80, 50);                                       // top front corner of the stem
 
 /* ---------- camera + render ---------- */
 const bbox = new THREE.Box3();
@@ -450,10 +476,10 @@ octx.drawImage(renderer.domElement, 0, 0);
   const t2 = document.createElement('canvas');
   t2.width = W; t2.height = H;
   const g2 = t2.getContext('2d');
-  g2.filter = 'blur(' + Math.round(UNIT_PX * 1.3) + 'px)';
+  g2.filter = 'blur(' + Math.round(UNIT_PX * 0.9) + 'px)';
   g2.drawImage(t, 0, 0);
   octx.globalCompositeOperation = 'screen';
-  octx.globalAlpha = 0.5;
+  octx.globalAlpha = 0.3;
   octx.drawImage(t2, 0, 0);
 }
 

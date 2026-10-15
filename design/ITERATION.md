@@ -35,5 +35,6 @@ Use [DESIGN.md](../DESIGN.md) as the current source of design decisions. Add rev
 | 2026-10-15 | Build the Home page: generated voxel b sculpture (finer stone, red rim light, glowing doorway, tapered floating foundation), primary button in `#D51D22`, clean wordmark, no active nav item on Home. | Implemented, awaiting user review |
 | 2026-10-15 | Rebuild the sculpture in three.js with real cubes (big foundation blocks, pixel-art textures, shadow-casting lights, doorway light) closer to the reference. | Superseded by the next row |
 | 2026-10-15 | Sculpture blocks are all charcoal stone; red comes from light, not red blocks. Larger cubes (9-unit letter, 12-unit foundation) with chunky chipped-stone textures. | Implemented, awaiting user review |
+| 2026-10-15 | Foundation remade as a bowl: regular grid of 15-unit rim cubes (some near-black so tops alternate red / black), 7.5 and 3.75-unit tiers stepping down a smooth bowl profile; chibi explorer; calmer glow. | Implemented, awaiting user review |
 
 For each later review, record the exact file, decision, and approval status. Do not mark proposals approved without a user decision.
