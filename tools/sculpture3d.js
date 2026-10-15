@@ -53,10 +53,10 @@ const JF = BODY_Y1 / G;                            // cells through the depth of
 // Measured from the reference on a fine grid, in units of the stem's width (2 cubes = 30):
 const STEM = { x0: 30, x1: 60, h: 120, y0: 15 };  // 2 big cubes wide, 2 deep, 8 tall
 const BOWL = { x0: 45, x1: 135, h: 75, rTop: 37.5, rBot: 0, y0: 15 };   // 2 big cubes deep, 5 tall; the right wall (x 105..135) is two big cubes; big rounded top-right corner
-const DOOR = { x0: 67.5, x1: 105, zRect: 37.5, cx: 86.25, r: 18.75, recessY: 26.25 };   // a big arched gate (37.5 wide, 56 tall), recessed 18.75 so its glowing inside shows
+const DOOR = { x0: 75, x1: 105, zRect: 45, cx: 90, r: 15, recessY: 30, archX0: 82.5, archX1: 97.5, archTop: 52.5 };   // on the big-block grid: 2 blocks wide, 3 tall, a stepped half-block arch on top, recessed one block
 const LANDING_Z = 60;                              // the landing against the stem where the explorer stands
 const CELL = 15;                                   // island top cube; tiers below are CELL/2 and CELL/4
-const PLAT_CX = 70, PLAT_CY = 36, PLAT_AX = 86, PLAT_AY = 54;   // island footprint, centred under the b and wide toward the front-left
+const PLAT_CX = 72, PLAT_CY = 46, PLAT_AX = 88, PLAT_AY = 66;   // wide toward the front (face side), where the big stairs land   // island footprint, centred under the b and wide toward the front-left
 
 const inCircle = (x, z, cx, cz, r) => (x - cx) ** 2 + (z - cz) ** 2 <= r * r;
 const inStem = (X, Z) => X >= STEM.x0 && X < STEM.x1 && Z >= 0 && Z < STEM.h;
@@ -71,9 +71,8 @@ function inBowl(X, Z) {
 }
 const inLetter = (X, Z) => inStem(X, Z) || inBowl(X, Z);
 function inDoorOpening(X, Z) {
-  if (X < DOOR.x0 || X >= DOOR.x1) return false;
-  if (Z < DOOR.zRect) return true;
-  return inCircle(X, Z, DOOR.cx, DOOR.zRect, DOOR.r);
+  if (X >= DOOR.x0 && X < DOOR.x1 && Z < DOOR.zRect) return true;
+  return X >= DOOR.archX0 && X < DOOR.archX1 && Z < DOOR.archTop;      // stepped arch: one half-block step
 }
 /* ---------- blocks ---------- */
 // block: { X, Y, Z (centre, scene units), s (size), f: [6 face tokens], t (brightness tint) }
@@ -107,8 +106,11 @@ function buildLetter() {
       }
     }
   }
-  // nothing left of the stem; the stairs are built in emitStairs. Doorstep in front of the door:
-  putBox(63.75, 93.75, 45, 52.5, 0, 3.75, 'step');
+  // stairs: four big steps, each two big blocks wide (the stem's width), descending from the stem toward the viewer
+  putBox(30, 60, 45, 60, 0, 60, 'stair');                                  // top step / landing, where the explorer stands
+  putBox(30, 60, 60, 75, 0, 45, 'stair');
+  putBox(30, 60, 75, 90, 0, 30, 'stair');
+  putBox(30, 60, 90, 105, 0, 15, 'stair');
   chips.forEach(([i, j, k]) => grid.delete(gk(i, j, k)));
 }
 
@@ -209,8 +211,8 @@ function emitPlatform() {
       if (rr > 1.0) continue;
       const r = hash3(ci, cj, 0, 2);
       const ring = rr > 0.8;
-      const flat = cj >= 0 && cj <= 3 && x > -30 && x < 150;                  // keeps its height: under the letter, the stairs and the doorstep
-      const under = cj >= 1 && cj <= 2 && x > 30 && x < 135;                       // hidden under the letter: no checker
+      const flat = cj >= 0 && cj <= 6 && x > -30 && x < 150;                  // keeps its height: under the letter, the stairs and the doorstep
+      const under = cj >= 1 && cj <= 2 && x > 30 && x < 135 || cj >= 3 && cj <= 6 && x > 30 && x < 60;                       // hidden under the letter: no checker
       let top = 0;
       if (ring && !flat) top = r < 0.28 ? -CELL / 2 : r > 0.72 ? CELL / 2 : 0;  // uneven rim: cubes stand at three heights
       const D = bowlDepth(x, y) * (0.96 + 0.08 * hash3(ci, cj, 1, 4));
@@ -239,7 +241,7 @@ function emitPlatform() {
       for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
         const xs = x - q4 + a * h2, ys = y - q4 + b * h2, hh = ci * 977 + cj * 131 + a * 17 + b * 5;
         const D2 = bowlDepth(xs, ys) * (0.9 + 0.2 * hash3(hh, 0, 0, 240)) - drop1;
-        const len2 = Math.max(0, Math.round(0.7 * D2 / h2));
+        const len2 = Math.max(0, Math.round((0.75 + 0.45 * hash3(hh, 3, 0, 243)) * D2 / h2));   // mostly half blocks under the big ones
         for (let q = 0; q < len2; q++) {
           const Z = z1 - h2 / 2 - q * h2;
           blocks.push({ X: xs, Y: ys, Z, s: h2, f: tierFaces(hh * 7 + q), t: tintOf(hh, q, 2, Z) });
@@ -249,7 +251,7 @@ function emitPlatform() {
         for (let c = 0; c < 2; c++) for (let d = 0; d < 2; d++) {
           const xt = xs - q4 / 2 + c * q4, yt = ys - q4 / 2 + d * q4, h3 = hh * 13 + c * 3 + d;
           const D3 = bowlDepth(xt, yt) * (0.6 + 0.8 * hash3(h3, 0, 0, 241)) - drop1 - len2 * h2;
-          const len3 = Math.min(9, Math.max(0, Math.round(D3 / q4) + (hash3(h3, 1, 0, 242) < 0.25 ? 2 : 0)));   // ragged: some columns hang on as stalactites
+          const len3 = hash3(h3, 1, 0, 242) < 0.3 ? 1 + Math.floor(hash3(h3, 2, 0, 244) * 2) : 0;   // only a few small tips
           for (let q = 0; q < len3; q++) {
             const Z = z2 - q4 / 2 - q * q4;
             blocks.push({ X: xt, Y: yt, Z, s: q4, f: tierFaces(h3 * 5 + q), t: tintOf(h3, q, 3, Z) });
@@ -339,7 +341,6 @@ function material(token, n) {
 /* ---------- build ---------- */
 buildLetter();
 emitLetter();
-emitStairs();
 emitPlatform();
 emitLoose();
 
@@ -401,12 +402,11 @@ for (const [, list] of groups) {
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   })();
   const arch = new THREE.Shape();
-  const w = DOOR.x1 - DOOR.x0, top = DOOR.zRect;
-  arch.moveTo(-w / 2, 0); arch.lineTo(w / 2, 0); arch.lineTo(w / 2, top);
-  arch.absarc(0, top, w / 2, 0, Math.PI, false); arch.lineTo(-w / 2, 0);
-  const ag = new THREE.ShapeGeometry(arch, 24);
-  // map UVs to the shape's bounds
-  const pos = ag.attributes.position, uv = ag.attributes.uv, H = top + w / 2;
+  const w = DOOR.x1 - DOOR.x0, top = DOOR.zRect, ax0 = DOOR.archX0 - DOOR.cx, ax1 = DOOR.archX1 - DOOR.cx;
+  arch.moveTo(-w / 2, 0); arch.lineTo(w / 2, 0); arch.lineTo(w / 2, top); arch.lineTo(ax1, top);
+  arch.lineTo(ax1, DOOR.archTop); arch.lineTo(ax0, DOOR.archTop); arch.lineTo(ax0, top); arch.lineTo(-w / 2, top); arch.lineTo(-w / 2, 0);
+  const ag = new THREE.ShapeGeometry(arch);
+  const pos = ag.attributes.position, uv = ag.attributes.uv, H = DOOR.archTop;
   for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / w + 0.5, pos.getY(i) / H);
   const back = new THREE.Mesh(ag, new THREE.MeshBasicMaterial({ map: tex }));
   back.position.set(DOOR.cx, 0, DOOR.recessY + 0.15);                  // scene (X, Y, Z) -> three (x, z, y)
@@ -416,9 +416,9 @@ for (const [, list] of groups) {
   floor.position.set(DOOR.cx, 0.12, (DOOR.recessY + BODY_Y1 + 7.5) / 2);
   scene.add(floor);
   // the recess's inner left wall glows too (seen through the opening)
-  const side = new THREE.Mesh(new THREE.PlaneGeometry(BODY_Y1 - DOOR.recessY, DOOR.zRect + DOOR.r * 0.7), new THREE.MeshBasicMaterial({ color: 0xd8180f }));
+  const side = new THREE.Mesh(new THREE.PlaneGeometry(BODY_Y1 - DOOR.recessY, DOOR.zRect), new THREE.MeshBasicMaterial({ color: 0xd8180f }));
   side.rotation.y = Math.PI / 2;
-  side.position.set(DOOR.x0 + 0.15, (DOOR.zRect + DOOR.r * 0.7) / 2, (DOOR.recessY + BODY_Y1) / 2);
+  side.position.set(DOOR.x0 + 0.15, DOOR.zRect / 2, (DOOR.recessY + BODY_Y1) / 2);
   scene.add(side);
 }
 
@@ -457,8 +457,8 @@ for (const [, list] of groups) {
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.4, bevelEnabled: false }), red, -1.4, 8.9, -0.4, 0, 0.35, -0.05);
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.3, bevelEnabled: false }), redDark, -1.2, 8.3, -1.2, 0, 0.55, 0.08).scale.set(0.75, 0.7, 1);
   g.scale.setScalar(0.92);
-  g.rotation.y = 0.15;
-  g.position.set(33.75, LANDING_Z, 50);
+  g.rotation.y = -0.55;                                                   // turned toward the viewer, looking down the stairs
+  g.position.set(45, LANDING_Z, 52.5);
   scene.add(g);
 })();
 
@@ -481,14 +481,14 @@ key.shadow.bias = -0.0004; key.shadow.normalBias = 0.35; key.shadow.radius = 3;
 scene.add(key, key.target);
 
 const doorInner = new THREE.PointLight(0xff2a1e, 420, 70, 2);         // glow inside the recess
-doorInner.position.set(DOOR.cx, 24, 34);
-const doorMouth = new THREE.PointLight(0xff2418, 900, 45, 2);         // spill onto the floor, doorstep and nearby steps only
-doorMouth.position.set(DOOR.cx, 10, 50);
+doorInner.position.set(DOOR.cx, 22, 36);
+const doorMouth = new THREE.PointLight(0xff3018, 1400, 60, 2);         // spill onto the floor, doorstep and nearby steps only
+doorMouth.position.set(DOOR.cx, 12, 52);
 scene.add(doorInner, doorMouth);
 
-const stairLight = new THREE.PointLight(0xff2a1c, 420, 46, 2);       // straight above the stairs: the treads glow, the risers stay dark
-stairLight.position.set(46, 92, 52);
-scene.add(stairLight);
+const stairLight = new THREE.PointLight(0xff2a1c, 380, 75, 2);       // straight above the stairs: the treads glow, the risers stay dark
+stairLight.position.set(45, 110, 80);
+// (no extra stair light: the key lights the treads, the risers stay dark stone)
 
 const edgeLight = (X, Y, Z, intensity, dist) => {
   const l = new THREE.PointLight(0xff2418, intensity, dist, 2);
@@ -502,7 +502,7 @@ const stripLight = (X, Y, Z, w, h, face, intensity) => {                  // sce
   l.lookAt(face === 'front' ? X : X - 1, Z, face === 'front' ? Y - 1 : Y);   // RectAreaLight emits away from the lookAt target
   scene.add(l);
 };
-stripLight(29, 46, 97.5, 2, 45, 'front', 4);                                // left edge of the stem above the landing
+stripLight(29, 46, 97.5, 2, 45, 'front', 2.5);                                // left edge of the stem above the landing
 stripLight(133, 46, 37.5, 4, 75, 'front', 5);                               // front edge at the right end of the bowl
 stripLight(137, 30, 37.5, 4, 75, 'right', 3);                               // right end face, along its front edge
 edgeLight(67, 100, -55, 260, 110);
@@ -557,16 +557,16 @@ octx.drawImage(renderer.domElement, 0, 0);
   g.drawImage(out, 0, 0);
   const img = g.getImageData(0, 0, W, H), d = img.data;
   for (let i = 0; i < d.length; i += 4) {
-    if (!(d[i] > 140 && d[i] > d[i + 1] * 2.4)) d[i + 3] = 0;
+    if (!(d[i] > 200 && d[i] > d[i + 1] * 2.2)) d[i + 3] = 0;   // only the brightest reds (the gate, the lit treads) bloom
   }
   g.putImageData(img, 0, 0);
   const t2 = document.createElement('canvas');
   t2.width = W; t2.height = H;
   const g2 = t2.getContext('2d');
-  g2.filter = 'blur(' + Math.round(UNIT_PX * 0.9) + 'px)';
+  g2.filter = 'blur(' + Math.round(UNIT_PX * 1.6) + 'px)';
   g2.drawImage(t, 0, 0);
   octx.globalCompositeOperation = 'screen';
-  octx.globalAlpha = 0.3;
+  octx.globalAlpha = 0.45;
   octx.drawImage(t2, 0, 0);
 }
 
