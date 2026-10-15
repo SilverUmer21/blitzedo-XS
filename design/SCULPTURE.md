@@ -153,10 +153,10 @@ camera from `assets/sculpture.json`, then draws the same scene with plain WebGL 
 - **Gate**: faces looking into the gate breathe (±14 % brightness, 3 s), a soft halo breathes with them, and 40 square sparks
   (WebGL points, snapped to half voxels) drift up out of the doorway and fade.
 - **Light pulse**: the build walks the surface voxels from the gate step (Dijkstra, cheap through red voxels and six times
-  dearer through plain stone) and stores each face's distance. Every 7 s a warm white front runs along that distance, so it
+  dearer through plain stone) and stores each face's distance. Every 9 s a warm white front (5 s long) runs along that distance, so it
   climbs the treads and follows the red outlines face by face, like a fuse.
 - **Tap to burst**: every block (each 15-unit cell of the b, each stair, island block and column) moves away from the scene's
-  centre and a little up, 6 to 14 units, in half-voxel steps, then springs back; the burst ripples out from the tap. The
+  centre and a little up, 6 to 14 units, in half-voxel steps over about 2 s, then springs back; the burst ripples out from the tap. The
   explorer rides his landing block.
 - **Cost**: one draw call for the scene and one for the sparks, about 30 frames a second, paused off screen and in background
   tabs. Skipped (the image stays) with reduced motion, Save-Data or no WebGL.

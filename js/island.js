@@ -22,12 +22,12 @@
     'uniform mat4 uMVP; uniform float uT; uniform float uClickT; uniform vec2 uClick;',
     'varying vec3 vCol; varying vec2 vInfo;',
     'float burst(float s) {',
-    '  if (s <= 0.0 || s >= 1.6) return 0.0;',
+    '  if (s <= 0.0 || s >= 1.8) return 0.0;',
     '  if (s < 0.22) { float u = 1.0 - s / 0.22; return 1.0 - u * u * u; }',
-    '  float u = s - 0.22; return exp(-5.5 * u) * cos(11.0 * u);',
+    '  float u = s - 0.22; return exp(-3.6 * u) * cos(7.5 * u);',
     '}',
     'void main() {',
-    '  float s = (uT - uClickT - length(aScr - uClick) * 0.32) / 0.9;',
+    '  float s = (uT - uClickT - length(aScr - uClick) * 0.5) / 1.5;',
     '  vec3 d = floor(aDir * burst(s) / 1.25 + 0.5) * 1.25;',   // moves in half-voxel steps, so it stays pixel art
     '  gl_Position = uMVP * vec4(aPos + d, 1.0);',
     '  vCol = aCol; vInfo = aInfo;',
@@ -203,18 +203,18 @@
 
     var t0 = performance.now(), clickT = -100, click = [0, 0], explorer = null, eb = blocks[M.explorerBlock];
     function burst(s) {
-      if (s <= 0 || s >= 1.6) return 0;
+      if (s <= 0 || s >= 1.8) return 0;
       if (s < 0.22) { var u = 1 - s / 0.22; return 1 - u * u * u; }
-      var w = s - 0.22; return Math.exp(-5.5 * w) * Math.cos(11 * w);
+      var w = s - 0.22; return Math.exp(-3.6 * w) * Math.cos(7.5 * w);
     }
     function draw(now) {
-      var t = (now - t0) / 1000, cyc = t % 7;
+      var t = (now - t0) / 1000, cyc = t % 9;
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(prog);
       binds.forEach(function (fn) { fn(); });
       gl.uniform1f(U.uT, t); gl.uniform1f(U.uClickT, clickT); gl.uniform2f(U.uClick, click[0], click[1]);
       gl.uniform1f(U.uPhase, Math.sin(t * 2.1));
-      gl.uniform1f(U.uPulse, cyc < 3.4 ? cyc / 3.4 * 1.15 - 0.05 : -1);
+      gl.uniform1f(U.uPulse, cyc < 5 ? cyc / 5 * 1.15 - 0.05 : -1);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib);
       gl.drawElements(gl.TRIANGLES, n * 6, gl.UNSIGNED_SHORT, 0);
       for (var a = 0; a < 5; a++) gl.disableVertexAttribArray(a);
@@ -227,7 +227,7 @@
       // the explorer rides the landing block
       explorer = explorer || stage.querySelector('.explorer');
       if (explorer && eb) {
-        var s = (t - clickT - Math.hypot(eb.s[0] - click[0], eb.s[1] - click[1]) * 0.32) / 0.9, m = burst(s);
+        var s = (t - clickT - Math.hypot(eb.s[0] - click[0], eb.s[1] - click[1]) * 0.5) / 1.5, m = burst(s);
         if (m) {
           var d = eb.d.map(function (x) { return Math.floor(x * m / 1.25 + 0.5) * 1.25; }), p = project(d[0], d[1], d[2], 0);
           explorer.style.transform = 'translate(' + (p[0] * cssW / 2).toFixed(1) + 'px,' + (-p[1] * cssH / 2).toFixed(1) + 'px)';
@@ -252,7 +252,7 @@
 
     stage.addEventListener('pointerdown', function (e) {
       var t = (performance.now() - t0) / 1000;
-      if (t - clickT < 0.5) return;
+      if (t - clickT < 0.8) return;
       var r = canvas.getBoundingClientRect();
       click = [(e.clientX - r.left) / r.width * 2 - 1, 1 - (e.clientY - r.top) / r.height * 2];
       clickT = t;

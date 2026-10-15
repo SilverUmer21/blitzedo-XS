@@ -1,6 +1,24 @@
 (function () {
   'use strict';
 
+  // the wordmark's pixel "blit" re-assembles on hover
+  var mark = document.querySelector('.wordmark');
+  var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (mark && !still && Element.prototype.animate) {
+    var lastBlit = 0;
+    mark.addEventListener('pointerenter', function (e) {
+      if (e.pointerType === 'touch' || Date.now() - lastBlit < 1500) return;
+      lastBlit = Date.now();
+      var solid = mark.querySelector('.wm-solid');
+      if (solid) solid.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 1050 });
+      mark.querySelectorAll('.wm-px').forEach(function (px) {
+        var cs = getComputedStyle(px);
+        px.animate([{ opacity: 0, transform: 'translate(' + cs.getPropertyValue('--x') + ',' + cs.getPropertyValue('--y') + ')' },
+          { opacity: 1, transform: 'none' }], { duration: 550, delay: parseFloat(cs.getPropertyValue('--d')) * 1000, easing: 'steps(4, end)', fill: 'backwards' });
+      });
+    });
+  }
+
   var toggle = document.querySelector('.menu-toggle');
   var nav = document.getElementById('site-nav');
   if (!toggle || !nav) return;

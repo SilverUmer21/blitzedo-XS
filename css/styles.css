@@ -73,8 +73,8 @@ a { color: inherit; text-decoration: none; }
   border-bottom: 1px solid var(--rule);
 }
 
-/* The wordmark: Inter Tight 760 outlines with a round i dot; the b's bottom-left corner crumbles into pixels, like the
-   voxel sculpture (tools/wordmark-svg.py). */
+/* The wordmark: "blit" in hand-drawn pixels running into a smooth Inter Tight "zedo" (tools/wordmark-svg.py). The pixels
+   fly in and assemble on load (and on hover, from js/menu.js). */
 .wordmark {
   display: block;
   font-size: clamp(30px, 3.4vw, 56px);
@@ -82,6 +82,11 @@ a { color: inherit; text-decoration: none; }
   padding: 0.1em 0;
 }
 .wordmark__svg { display: block; height: 0.8em; width: auto; overflow: visible; }
+.wm-px { animation: wm-in 0.55s steps(4, end) calc(var(--d) + 0.15s) both; }
+/* the solid copy underneath appears once the last pixel has landed */
+.wm-solid { animation: wm-solid 1.2s steps(1, end) both; }
+@keyframes wm-solid { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wm-in { from { opacity: 0; transform: translate(var(--x), var(--y)); } to { opacity: 1; transform: none; } }
 
 .site-nav {
   display: flex;

@@ -1,23 +1,85 @@
-import json, sys
-G = json.load(open(sys.argv[1]))
-P = 168.5                     # one pixel of the b's broken corner: half the stem
-parts = []
-for ch, x0, d, bb in G['glyphs']:
-    if ch == 'i':
-        parts.append(f'<rect x="{x0+87:.0f}" y="0" width="337" height="1118"/>')
-        parts.append(f'<circle cx="{x0+255.5:.0f}" cy="1405" r="178"/>')
-    else:
-        parts.append(f'<path transform="translate({x0:.0f} 0)" d="{d}"/>')
-x1 = G['glyphs'][-1][1] + G['glyphs'][-1][3][2]
-L = 87
-# the b's bottom-left corner breaks into pixels, like the voxel sculpture: a 2 x 2 pixel cut, one stepped pixel left in place
-# and one small loose pixel
-cut = f'<rect x="{L-10}" y="-40" width="{2*P+10:.0f}" height="{2*P+40:.0f}" fill="#000"/>'
-# the stem's bottom-left corner crumbles into pixels (P = a third of the stem): a 2 x 2 pixel cut, one step left in place
-# (overlapping the glyph a little so no seam shows) and one small loose pixel at the very corner
-bits = f'<rect x="{L+P:.1f}" y="{P:.1f}" width="{P+6:.1f}" height="{P+6:.1f}"/>'
-bits += f'<rect x="{L+P*0.16:.1f}" y="{P*0.1:.1f}" width="{P*0.66:.1f}" height="{P*0.66:.1f}"/>'
-vb = f'{L} -30 {x1-L:.0f} 1640'
-svg = f'''<svg class="wordmark__svg" viewBox="{vb}" role="img" aria-label="blitzedo" focusable="false"><defs><mask id="wm-cut" maskUnits="userSpaceOnUse" x="{L-50}" y="-60" width="{x1:.0f}" height="1700"><rect x="{L-50}" y="-60" width="{x1:.0f}" height="1700" fill="#fff"/>{cut}</mask></defs><g transform="matrix(1 0 0 -1 0 1582)" fill="currentColor"><g mask="url(#wm-cut)">{parts[0]}</g>{bits}{''.join(parts[1:])}</g></svg>'''
-open(sys.argv[2], 'w').write(svg)
-print(len(svg))
+"""
+Builds the blitzedo wordmark SVG (assets/wordmark.svg and the inline copy in the pages' headers).
+
+  pip install fonttools brotli
+  python3 tools/wordmark-svg.py            # prints the inline SVG; writes assets/wordmark.svg
+
+Inter Tight at weight 760, tracking -1.8 %, a round i dot. "blit" is a hand-drawn pixel font on a grid whose seven rows fill
+"zedo"'s x-height exactly (nine rows reach the ascender, the i's dot sits a row above), so the name reads as a pixel blit
+running into the smooth "zedo". Each pixel is its own <rect> with a random delay and offset (--d, --x, --y): the CSS
+assembles them on load and again on hover.
+"""
+import random
+from fontTools.ttLib import TTFont
+from fontTools.varLib.instancer import instantiateVariableFont
+from fontTools.pens.svgPathPen import SVGPathPen
+from fontTools.pens.boundsPen import BoundsPen
+
+FONT = 'assets/fonts/inter-tight-latin-wght-normal.woff2'
+WEIGHT, TRACK = 760, -0.018
+# pixel glyphs, top row first; rows 2-8 are the x-height, row 8 sits on the baseline, row -1 is the i's dot
+BLIT = {
+    'b': ['XX.....', 'XX.....', 'XX.XXX.', 'XXXXXXX', 'XX...XX', 'XX...XX', 'XX...XX', 'XXXXXXX', 'XX.XXX.'],
+    'l': ['XX'] * 9,
+    'i': ['XX', 'XX', '..', 'XX', 'XX', 'XX', 'XX', 'XX', 'XX', 'XX'],     # starts at row -1
+    't': ['.....', '.XX..', 'XXXXX', 'XXXXX', '.XX..', '.XX..', '.XX..', '.XX..', '..XXX'],
+}
+f = instantiateVariableFont(TTFont(FONT), {'wght': WEIGHT})
+gs, cmap, upm = f.getGlyphSet(), f.getBestCmap(), f['head'].unitsPerEm
+cap = f['OS/2'].sCapHeight
+cell = f['OS/2'].sxHeight / 7.0     # seven pixel rows fill the x-height
+
+glyphs, x = [], 0.0
+for ch in 'blitzedo':
+    g = gs[cmap[ord(ch)]]
+    bp = BoundsPen(gs); g.draw(bp)
+    glyphs.append((ch, x, g, bp.bounds))
+    x += g.width + TRACK * upm
+
+I_STEM, I_DOT_Y, I_DOT_R = (87, 424), 1405, 178          # the smooth i (unused while "blit" is pixel art)
+
+rnd = random.Random(7)
+pixels, smooth = [], []
+px = glyphs[0][3][0]                              # the pixel letters start at the b's left edge, one blank column between them
+for ch in 'blit':
+    rows = BLIT[ch]
+    top = 9 if ch == 'i' else 8                   # the row index of rows[0], counted up from the baseline row (0)
+    for r, line in enumerate(rows):
+        for c, v in enumerate(line):
+            if v == 'X': pixels.append((px + c * cell, (top - r) * cell))
+    px += (len(rows[0]) + 1) * cell
+shift = px - glyphs[4][1] - glyphs[4][3][0]       # "zedo" moves right to sit one pixel column after the t
+for ch, x0, g, bb in glyphs[4:]:
+    p = SVGPathPen(gs); g.draw(p)
+    smooth.append(f'<path transform="translate({x0 + shift:.0f} 0)" d="{p.getCommands()}"/>')
+
+# pixels: y flipped into SVG space here (the smooth glyphs are flipped by their group)
+TOP = 1582
+rects = []
+for px, py in pixels:
+    d = rnd.random() * 0.45
+    dx, dy = rnd.choice([-2, -1, 1, 2]) * cell, rnd.choice([-2, -1, 1]) * cell
+    rects.append(f'<rect class="wm-px" x="{px - 0.75:.1f}" y="{TOP - py - cell - 0.75:.1f}" width="{cell + 1.5:.1f}" '
+                 f'height="{cell + 1.5:.1f}" style="--d:{d:.2f}s;--x:{dx:.0f}px;--y:{dy:.0f}px"/>')
+
+# the same pixels as one solid path (row runs), shown once the flying pixels have landed: no seams between them at any size
+runs = {}
+for px, py in pixels: runs.setdefault(round(py / cell), []).append(round((px - glyphs[0][3][0]) / cell))
+solid = []
+for r, cols in runs.items():
+    cols.sort(); c0 = prev = cols[0]
+    for c in cols[1:] + [None]:
+        if c is not None and c == prev + 1: prev = c; continue
+        x0 = glyphs[0][3][0] + c0 * cell
+        solid.append(f'M{x0:.1f} {TOP - (r + 1) * cell:.1f}h{(prev - c0 + 1) * cell:.1f}v{cell:.1f}h{-(prev - c0 + 1) * cell:.1f}z')
+        if c is not None: c0 = prev = c
+
+x_left = glyphs[0][1] + glyphs[0][3][0]
+x_right = glyphs[-1][1] + glyphs[-1][3][2] + shift
+vb = f'{x_left:.0f} {TOP - 10 * cell:.0f} {x_right - x_left:.0f} {10 * cell + 30:.0f}'
+svg = (f'<svg class="wordmark__svg" viewBox="{vb}" aria-hidden="true" focusable="false"><g fill="currentColor">'
+       f'<path class="wm-solid" d="{"".join(solid)}"/><g class="wm-blit">{"".join(rects)}</g>'
+       f'<g transform="matrix(1 0 0 -1 0 {TOP})">{"".join(smooth)}</g></g></svg>')
+open('assets/wordmark.svg', 'w').write(svg.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ')
+                                        .replace('fill="currentColor"', 'fill="#FBF5EB"'))
+print(svg)
