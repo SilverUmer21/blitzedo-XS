@@ -105,18 +105,19 @@ function buildLetter() {
 const STEP = 7.5;                                 // chunky steps: 3 voxels run and rise, like the reference
 const MID_Z = 52.5, TOP_Z = 75;
 const SMALL_DOOR = { x0: 30, x1: 37.5, y0: 37.5, y1: 45, z0: 70, zRect: 80, r: 3.75 };
-const EXPLORER_AT = [20, 38, 70];
+const EXPLORER_AT = [20, 39, 65];
 function buildStairs() {
-  // as in the reference: the explorer's landing at the stem's front-left corner; two steps down onto the tower; then a long flight of
-  // nine small steps (5 run, 5 rise) running right along the stem's front, down to the gate step. One big block deep.
-  fillBox(10, 30, 30, 45, 0, 70, KIND.TOWER, newBlock(true));                                       // top landing (explorer)
-  fillBox(10, 30, 45, 60, 0, 50, KIND.TOWER, newBlock(true));                                       // the tower
-  fillBox(10, 30, 45, 52.5, 0, 63.75, KIND.STAIR, newBlock(true));                                  // two steps down onto the tower
-  fillBox(10, 30, 52.5, 60, 0, 57.5, KIND.STAIR, newBlock(true));
-  for (let s = 0; s < 9; s++) fillBox(30 + 5 * s, 35 + 5 * s, 45, 60, 0, 50 - 5 * (s + 1), KIND.STAIR, newBlock(true));
+  // as in the reference, one continuous path with a 5-unit rise everywhere: the explorer's landing at the stem's front-left corner
+  // (65 high); two steps down toward the viewer onto the tower's top (50); then a long flight of nine small steps (5 run, 5 rise)
+  // running right along the stem's front from the tower, down to the gate step. One big block deep.
+  fillBox(10, 30, 30, 45, 0, 65, KIND.TOWER, newBlock(true));                                       // top landing (explorer)
+  fillBox(10, 30, 45, 50, 0, 60, KIND.STAIR, newBlock(true));                                       // two steps down onto the tower
+  fillBox(10, 30, 50, 55, 0, 55, KIND.STAIR, newBlock(true));
+  fillBox(10, 30, 55, 62.5, 0, 50, KIND.TOWER, newBlock(true));                                     // the tower: the turn landing
+  for (let s = 0; s < 9; s++) fillBox(30 + 5 * s, 35 + 5 * s, 45, 62.5, 0, 50 - 5 * (s + 1), KIND.STAIR, newBlock(true));
   // the gate's step: red tiles from the gate along the bowl's front, then curving in under the bowl's rounded bottom ending
   const stepBlock = newBlock(true);
-  for (let i = vi(65); i < vi(137.5); i++) for (let j = vj(15); j < vj(57.5); j++) {
+  for (let i = vi(65); i < vi(137.5); i++) for (let j = vj(15); j < vj(62.5); j++) {
     const X = cx(i), Y = cy(j);
     const front = Y >= 45 && X < 110;                                        // in front of the gate only
     const under = false;
@@ -204,7 +205,8 @@ function roughen() {
 const STONE_FACE = { top: 1.5, front: 1.0, right: 0.74 };
 const RED_FACE = { top: 1.0, front: 0.86, right: 0.66 };
 const REDS = [[0.93, 0.17, 0.15], [0.88, 0.14, 0.12], [0.98, 0.27, 0.22], [0.74, 0.1, 0.09]];
-const DEMO_REDTEX = /demo=redtex/.test(location.search);
+const DEMO_REDTEX = /demo=(redtex|pixeltex)/.test(location.search);
+const DEMO_STONETEX = /demo=(stonetex|pixeltex)/.test(location.search);
 // demo: red as a crafted pixel-art tile per big block (like the explorer's pixel art): lit top-left edge, shaded bottom-right
 // edge, a dark corner, and a few highlight / shade specks inside
 function redTile(i, j, k, f) {
@@ -228,7 +230,27 @@ function redColour(i, j, k, f) {
   const m = f === 0 ? RED_FACE.top : f === 1 ? RED_FACE.front : RED_FACE.right;
   return [c[0] * m, c[1] * m, c[2] * m];
 }
+// demo: stone as a crafted pixel-art tile per big block, the same idea as the red tile: a lit top-left edge, a shaded bottom-right
+// edge with a dark corner, and inside two or three lighter chips (2 x 1 or 2 x 2), a few pits and flecks
+function stoneTile(i, j, k, f, b) {
+  const loc = (v) => Math.floor((((v % 15) + 15) % 15) / V);
+  const X = cx(i), Y = cy(j), Z = cz(k);
+  const u = f === 2 ? loc(Y) : loc(X), w = f === 0 ? loc(Y) : 5 - loc(Z);
+  const hb = Math.floor(X / 15) * 31 + Math.floor(Y / 15) * 17 + Math.floor(Z / 15) * 7 + f * 3;
+  let v = 0.112 + (blocks[b] ? blocks[b].tone : 0);
+  if (u === 5 && w === 5) return v - 0.06;
+  if (u === 0 || w === 0) return v + ((u + w) % 4 === 1 ? 0.03 : 0.055);
+  if (u === 5 || w === 5) return v - 0.04;
+  for (let c = 0; c < 3; c++) {                                // chips: lighter clusters at block-chosen spots
+    const cu = 1 + Math.floor(hash3(hb, c, 1, 92) * 3), cw = 1 + Math.floor(hash3(hb, c, 2, 92) * 3), big = hash3(hb, c, 3, 92) < 0.5;
+    if (c === 2 && hash3(hb, 9, 9, 92) < 0.5) break;
+    if (u >= cu && u <= cu + 1 && w >= cw && w <= cw + (big ? 1 : 0)) return v + (u === cu && w === cw ? 0.1 : 0.07);
+  }
+  const n = hash3(hb, u * 7 + w, 4, 93);
+  return n < 0.12 ? v - 0.045 : n > 0.9 ? v + 0.035 : v;
+}
 function stoneValue(i, j, k, f, b) {
+  if (DEMO_STONETEX) return stoneTile(i, j, k, f, b);
   let v = 0.12 + (blocks[b] ? blocks[b].tone : 0);
   const n = hash3(i, j, k, 20 + f), c2 = hash3(i >> 1, j >> 1, k >> 1, 23 + f), c3 = hash3(Math.floor(i / 3), Math.floor(j / 3), Math.floor(k / 3), 24 + f);
   if (c2 > 0.76) v += 0.085;                                  // lighter 2 x 2 chips
@@ -348,6 +370,9 @@ function faceColour(i, j, k, f) {
     if (dx < 5 && Z < DOOR.zRect + 6) spill = Math.max(0, 0.35 - dx * 0.07) * (Z < 12 ? 1.3 : 1);
   }
 
+  if (red && f === 0 && Math.abs(cz(k) + V / 2 - EXPLORER_AT[2]) < 0.1 && (cx(i) - EXPLORER_AT[0] - 0.6) ** 2 / 16 + (cy(j) - EXPLORER_AT[1]) ** 2 / 9 < 1) {
+    const c = redColour(i, j, k, f); return [c[0] * 0.55, c[1] * 0.5, c[2] * 0.5];   // the explorer's soft shadow under his boots
+  }
   if (red) return redColour(i, j, k, f);
 
   let v = stoneValue(i, j, k, f, b);
@@ -357,7 +382,7 @@ function faceColour(i, j, k, f) {
   for (let q = 0; q < 4; q++) {
     const [a, bb, c] = dirs[q];
     const ni = i + a, nj = j + bb, nk = k + c;
-    if (solid(ni, nj, nk) && bid[idx(ni, nj, nk)] !== b) {
+    if (!DEMO_STONETEX && solid(ni, nj, nk) && bid[idx(ni, nj, nk)] !== b) {
       const lowSide = (f === 0 && (a > 0 || bb > 0)) || (f !== 0 && (c < 0 || a > 0 || bb < 0));
       v *= lowSide ? 0.72 : 1.16;
     }

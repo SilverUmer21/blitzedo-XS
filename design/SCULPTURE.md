@@ -66,13 +66,15 @@ How the home page sculpture (`assets/sculpture.webp`) is built, and how each par
 
 ## Stairs: the path
 
-As in the reference, one big block deep:
+As in the reference, one big block deep, one continuous path with a 5-unit rise at every step:
 
-1. **Top landing**: at the stem's front-left corner, 70 high, where the explorer stands.
-2. **Short flight**: two steps come down toward the viewer onto the tower.
-3. **Tower (mid landing)**: 50 high at the b's front-left, with a red outline on its edges.
-4. **Long flight**: nine small steps (5 run, 5 rise) run right along the stem's front, down to the gate.
+1. **Top landing**: at the stem's front-left corner, 65 high, where the explorer stands (a soft dark shadow under his boots).
+2. **Short flight**: two steps (60, 55) come down toward the viewer onto the tower.
+3. **Tower (turn landing)**: 50 high at the b's front-left, with a red outline on its edges.
+4. **Long flight**: nine small steps (5 run, 5 rise, 45 down to 5) run right along the stem's front from the tower, down to the gate.
 5. **Gate step**: red tiles in front of the gate, where the flight lands.
+
+![Stairs and explorer](references/sculpture/stairs-explorer-zoom.png)
 
 Treads are red, with a one-pixel red front edge; risers are dark stone; the outer edges carry the red outline.
 
@@ -130,8 +132,10 @@ he matches the sculpture's 3D pixel look. The build renders 14 frames into `asse
 
 ![Explorer frames](../references/explorer-frames.png)
 
-## Demo: pixel-texture red (not live)
+## Demo: pixel-texture red and stone (not live; see `demo.html`)
 
 `DEMO=redtex CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/build-sculpture.js` renders `assets/demo-redtex.webp`:
 each red block top gets a crafted 6 × 6 pixel tile (lit top-left edge, shaded bottom-right edge, a dark corner and specks),
-like the explorer's texture. Comparison: [`demo-redtex-compare.png`](references/sculpture/demo-redtex-compare.png).
+like the explorer's texture. `DEMO=stonetex` does the same for the stone (lit top-left edge, shaded bottom-right edge and dark
+corner, two or three lighter chips, a few pits); `DEMO=pixeltex` combines both. Several at once: `DEMO=redtex,stonetex,pixeltex`.
+`demo.html` shows the home page with a switcher between the current render and the demos. Red comparison: [`demo-redtex-compare.png`](references/sculpture/demo-redtex-compare.png).

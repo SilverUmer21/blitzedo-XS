@@ -20,3 +20,4 @@ Open `index.html` in a browser (no build step needed).
 - The explorer is a 3D voxel figure rendered by the build into 14 animation frames (`assets/explorer.png`) and played by `js/explorer.js`, placed on the landing via the stage's `data-explorer` attribute (written to `assets/sculpture.json`; copy into `index.html` after a rebuild).
 - The artwork is rendered on pure black and shown with `mix-blend-mode: screen`, so it blends into the page background.
 - Links to `games.html`, `studio.html` and `contact.html` are placeholders until those pages exist.
+- `demo.html` is a texture demo of the home page (switch between the current render and the pixel-texture demos); it is not linked from the site.

@@ -70,12 +70,12 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/ja
     fs.writeFileSync(out, Buffer.from(url.split(',')[1], 'base64'));
     console.log(`wrote ${path.relative(process.cwd(), out)} (${width}px wide, ${(fs.statSync(out).size / 1024) | 0} KB); source ${size[0]}x${size[1]}`);
   }
-  if (process.env.DEMO) {                              // e.g. DEMO=redtex: render the demo variant to assets/demo-<name>.webp
-    await page.goto(`http://127.0.0.1:${port}/render.html?demo=${process.env.DEMO}`);
+  for (const demo of (process.env.DEMO || '').split(',').filter(Boolean)) {   // e.g. DEMO=redtex,pixeltex: assets/demo-<name>.webp
+    await page.goto(`http://127.0.0.1:${port}/render.html?demo=${demo}`);
     await page.waitForFunction('window.__sculptureReady === true', null, { timeout: 280000 });
     const url = await page.evaluate("window.__sculptureCanvas.toDataURL('image/webp', 0.95)");
-    fs.writeFileSync(path.join(assets, `demo-${process.env.DEMO}.webp`), Buffer.from(url.split(',')[1], 'base64'));
-    console.log('wrote demo', process.env.DEMO);
+    fs.writeFileSync(path.join(assets, `demo-${demo}.webp`), Buffer.from(url.split(',')[1], 'base64'));
+    console.log('wrote demo', demo);
   }
   await browser.close();
   server.close();
