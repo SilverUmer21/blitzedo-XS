@@ -207,8 +207,13 @@ a { color: inherit; text-decoration: none; }
 }
 
 .hero__stage {
+  /* the stage always has the artwork's exact proportions (2180 x 2356), so the explorer and the live island, which are placed
+     in fractions of it, stay on the artwork at every screen size; it fills the column up to the screen's height */
+  --art-h: calc(100svh - var(--header-h) - 8px);
   position: relative;
-  display: inline-block;
+  display: block;
+  flex: none;
+  width: min(100%, calc(var(--art-h) * 2180 / 2356));
   line-height: 0;
 }
 
@@ -245,11 +250,8 @@ a { color: inherit; text-decoration: none; }
 
 .hero__sculpture {
   display: block;
-  width: auto;
-  height: calc(100svh - var(--header-h) - 8px);
-  max-width: 100%;
-  object-fit: contain;
-  object-position: right center;
+  width: 100%;
+  height: auto;
   /* the artwork is rendered on pure black; screen blending lets the page background show through */
   mix-blend-mode: screen;
 }
@@ -393,12 +395,7 @@ a { color: inherit; text-decoration: none; }
     margin: 4px calc(var(--gutter) * -0.4) 16px;
     justify-content: center;
   }
-  .hero__stage { width: auto; }
-  .hero__sculpture {
-    width: auto;
-    max-width: 100%;
-    height: max(280px, calc(100svh - var(--header-h) - 2 * 0.82 * 24vw - 120px));
-  }
+  .hero__stage { --art-h: max(280px, calc(100svh - var(--header-h) - 2 * 0.82 * 24vw - 120px)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
