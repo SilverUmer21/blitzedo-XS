@@ -51,11 +51,11 @@ const G = 3.75;                                    // finest letter cell; aligne
 const BODY_Y1 = 45;                                // front plane of the letter: three cubes deep
 const JF = BODY_Y1 / G;                            // cells through the depth of the bowl
 const STEM = { x0: 30, x1: 60, h: 120, y0: 15 };   // 2 cubes wide, 2 deep (front flush with the bowl), 8 tall
-const BOWL = { x0: 45, x1: 120, h: 75, rTop: 45, rBot: 15 };            // 3 deep, 5 tall, 5 wide; a big rounded top-right corner
-const DOOR = { x0: 75, x1: 105, zRect: 30, cx: 90, r: 15, recessY: 30 };   // arched opening on the cube grid, recessed one cube
+const BOWL = { x0: 45, x1: 150, h: 75, rTop: 30, rBot: 0 };             // 3 deep, 5 tall, 7 wide; square bottom, small rounded top corner: the right end is a big, full-height side face
+const DOOR = { x0: 75, x1: 105, zRect: 37.5, cx: 90, r: 15, recessY: 30 };   // arched opening on the cube grid, recessed one cube
 const LANDING_Z = 45;                              // top of the stairs, where the explorer stands
 const CELL = 15;                                   // island top cube; tiers below are CELL/2 and CELL/4
-const PLAT_CX = 62, PLAT_CY = 34, PLAT_AX = 80, PLAT_AY = 52;   // island footprint: an ellipse that reads as a disc from the camera
+const PLAT_CX = 90, PLAT_CY = 30, PLAT_AX = 84, PLAT_AY = 50;   // centred under the b: no spare platform to its left   // island footprint: an ellipse that reads as a disc from the camera
 
 const inCircle = (x, z, cx, cz, r) => (x - cx) ** 2 + (z - cz) ** 2 <= r * r;
 const inStem = (X, Z) => X >= STEM.x0 && X < STEM.x1 && Z >= 0 && Z < STEM.h;
@@ -106,30 +106,28 @@ function buildLetter() {
       }
     }
   }
-  // stairs, as in the reference: a left block flush with the b (same depth and front as the stem) whose top climbs in three steps
-  // (15 / 30 / 45 high) to the landing beside the stem, then a thin ribbon of small steps runs down the wall to the doorstep
-  putBox(0, 7.5, STEM.y0, BODY_Y1, 0, 15, 'stair');
-  putBox(7.5, 15, STEM.y0, BODY_Y1, 0, 30, 'stair');
-  putBox(15, 30, STEM.y0, BODY_Y1, 0, 45, 'stair');
+  // no block left of the stem: the only stairs are one flight down the front wall (emitStairs)
   // doorstep
   putBox(75, 105, 45, 52.5, 0, 7.5, 'step');
   chips.forEach(([i, j, k]) => grid.delete(gk(i, j, k)));
 }
 
-// thin ribbon of small steps from the landing down to the doorway: a diagonal line of 3.75-unit cubes outside the 7.5 grid,
-// each step a tread cube with one cube under it, two deep, like the reference's thin diagonal ribbon
-function emitRibbon() {
+// One flight of stairs against the front wall: a landing (11.25 wide, 45 high) in front of the stem where the explorer stands, then nine
+// steps (3.75 wide, 3.75 rise) down to the doorstep. Each step is a solid column of 3.75-unit blocks, two deep (7.5), so the flight
+// reads as a stair wedge built onto the wall; treads are lit, the risers below sit in shadow.
+function emitStairs() {
   const q = 3.75;
-  for (let st = 0; st < 12; st++) {
-    const X = 30 + q / 2 + st * q, top = 45 - (st + 1) * q;                   // treads at 41.25, 37.5, ... 3.75: one diagonal along the wall, from the landing to the doorstep
-    for (let n = 0; n < 2; n++) {
-      for (let d = 0; d < 2; d++) {
-        const f = baseFaces();
-        f[2] = 'c' + Math.floor(hash3(st, n, d, 250) * 4); f[0] = 'c' + Math.floor(hash3(st, n, d, 251) * 4); f[4] = 'c' + Math.floor(hash3(st, n, d, 252) * 4);
-        blocks.push({ X, Y: BODY_Y1 + q / 2 + d * q, Z: top - q / 2 - n * q, s: q, f, t: n === 0 ? 0.95 : 0.5 });
-      }
+  const cols = [];
+  for (let c = 0; c < 3; c++) cols.push([30 + q / 2 + c * q, 45]);                         // landing
+  for (let st = 0; st < 9; st++) cols.push([41.25 + q / 2 + st * q, 41.25 - st * q]);      // treads 41.25 ... 11.25, then the 7.5 doorstep
+  cols.forEach(([X, top], c) => {
+    const n = Math.round(top / q);
+    for (let k = 0; k < n; k++) for (let d = 0; d < 2; d++) {
+      const f = baseFaces();
+      f[2] = 'c' + Math.floor(hash3(c, k, d, 250) * 4); f[0] = 'c' + Math.floor(hash3(c, k, d, 251) * 4); f[4] = 'c' + Math.floor(hash3(c, k, d, 252) * 4);
+      blocks.push({ X, Y: BODY_Y1 + q / 2 + d * q, Z: k * q + q / 2, s: q, f, t: k === n - 1 ? 0.95 : 0.55 + 0.3 * hash3(c, k, d, 253) });
     }
-  }
+  });
 }
 
 /* merge aligned groups into the island's three tiers: 15-unit cubes (4x4x4 cells) where a full group fits, else 7.5-unit blocks
@@ -200,15 +198,15 @@ const shadeDepth = (Z) => 1 - 0.4 * Math.min(1, Math.max(0, -Z / 100));
 const darkCube = (a, b, c) => hash3(a, b, c, 302) < 0.4;                  // some cubes are near-black stone, so tops alternate red / black
 const tintOf = (a, b, c, Z) => (darkCube(a, b, c) ? 0.03 : 0.45 + 0.8 * hash3(a, b, c, 301)) * shadeDepth(Z);
 function emitPlatform() {
-  for (let ci = -6; ci <= 12; ci++) {
+  for (let ci = -6; ci <= 14; ci++) {
     for (let cj = -8; cj <= 10; cj++) {
       const x = ci * CELL + CELL / 2, y = cj * CELL + CELL / 2;               // cell edges line up with the letter's 15-unit cubes
       const rr = rOf(x, y);
       if (rr > 1.0) continue;
       const r = hash3(ci, cj, 0, 2);
       const ring = rr > 0.8;
-      const flat = cj >= 0 && cj <= 3 && x > -45 && x < 150;                  // keeps its height: under the letter, the stairs and the doorstep
-      const under = cj >= 0 && cj <= 2 && x > -30 && x < 135;                     // hidden under the letter: no checker
+      const flat = cj >= 0 && cj <= 3 && x > -45 && x < 165;                  // keeps its height: under the letter, the stairs and the doorstep
+      const under = cj >= 0 && cj <= 2 && x > 15 && x < 150;                       // hidden under the letter: no checker
       let top = 0;
       if (ring && !flat && r > 0.93) top = CELL / 2;                           // only the odd rim cube stands higher: otherwise a regular row
       const D = bowlDepth(x, y) * (0.96 + 0.08 * hash3(ci, cj, 1, 4));
@@ -253,7 +251,7 @@ function emitPlatform() {
 /* ----- loose floating cubes ----- */
 const LOOSE = [
   // x, y, z (centre), size
-  [-40, 66, -34, 11.25], [-12, 90, -62, 7.5], [40, 100, -88, 15],
+  [-8, 70, -34, 11.25], [14, 92, -62, 7.5], [56, 100, -88, 15],
   [112, 98, -70, 7.5], [150, 80, -52, 15], [170, 44, -30, 11.25]
 ];
 function emitLoose() {
@@ -328,7 +326,7 @@ function material(token, n) {
 /* ---------- build ---------- */
 buildLetter();
 emitLetter();
-emitRibbon();
+emitStairs();
 emitPlatform();
 emitLoose();
 
@@ -414,7 +412,7 @@ for (const [, list] of groups) {
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.45, bevelEnabled: false }), red, -1.2, 10.5, -0.2, 0, 0.15, 0);
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.3, bevelEnabled: false }), redDark, -1.0, 9.9, -0.9, 0, 0.35, 0.05).scale.set(0.7, 0.6, 1);
   g.scale.setScalar(1.15);
-  g.position.set(21, LANDING_Z, 41);
+  g.position.set(35.6, LANDING_Z, 48.75);
   scene.add(g);
 })();
 
@@ -455,9 +453,8 @@ const stripLight = (X, Y, Z, w, h, face, intensity) => {                  // sce
   scene.add(l);
 };
 stripLight(28, 46, 82.5, 4, 75, 'front', 8);                                // left edge of the stem above the landing
-stripLight(-2, 46, 7.5, 4, 15, 'front', 8);                                // left edge of the lowest step
-stripLight(118, 46, 37.5, 4, 75, 'front', 8);                               // front edge at the right end of the bowl
-stripLight(122, 28, 37.5, 6, 75, 'right', 8);                               // right end face, along its front edge
+stripLight(148, 46, 37.5, 4, 75, 'front', 8);                               // front edge at the right end of the bowl
+stripLight(152, 28, 37.5, 6, 75, 'right', 8);                               // right end face, along its front edge
 edgeLight(67, 92, -70, 160, 100);                                     // low red glow under the island: the cone's tips catch it
 edgeLight(160, 80, -45, 90, 60);
 edgeLight(-45, 70, -40, 80, 55);
@@ -469,7 +466,7 @@ const centre = bbox.getCenter(new THREE.Vector3());
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 2000);
 // Camera measured from the reference: the bowl's right end is half as wide on screen as its front (45 deep x 75 wide), which
 // means 40 deg around from the b's face; 21 deg up from the top-face proportions.
-const AZ = 40 * Math.PI / 180, EL = 21 * Math.PI / 180;
+const AZ = 38 * Math.PI / 180, EL = 21 * Math.PI / 180;
 camera.position.copy(centre).add(new THREE.Vector3(Math.sin(AZ) * Math.cos(EL), Math.sin(EL), Math.cos(AZ) * Math.cos(EL)).multiplyScalar(700));
 camera.lookAt(centre);
 camera.updateMatrixWorld(true);
