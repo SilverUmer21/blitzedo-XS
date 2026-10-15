@@ -14,6 +14,9 @@
  */
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+
+RectAreaLightUniformsLib.init();
 
 const UNIT_PX = 10.6;          // output pixels per unit
 
@@ -39,12 +42,12 @@ function vnoise(x, y, z, sc, s) {
 
 /* ---------- layout (units) ---------- */
 const G = 3;                                       // finest letter cell; 3x3x3 groups merge into 9-unit cubes
-const DOOR = { x0: 60, x1: 87, zRect: 36, cx: 73.5, r: 13.5, recessY: 9 };   // opening; recess from y=9 to the face at y=27
+const DOOR = { x0: 60, x1: 87, zRect: 36, cx: 73.5, r: 13.5, recessY: 18 };  // opening; recess from y=18 to the face at y=27 (shallow, so the back wall reads wide)
 const BODY_Y1 = 27;
 const JF = BODY_Y1 / G;                            // cells in the depth of the body
-const STEM = { x0: 24, x1: 51, h: 108 };
-const BOWL = { x0: 42, x1: 114, h: 72, rTop: 36, rBot: 24 };
-const LANDING_Z = 45;
+const STEM = { x0: 24, x1: 51, h: 126 };
+const BOWL = { x0: 42, x1: 114, h: 72, rTop: 42, rBot: 30 };
+const LANDING_Z = 54;
 const CELL = 15;                                   // foundation top cube; tiers below are CELL/2 and CELL/4
 const PLAT = { x0: -15, x1: 135, y0: -27, y1: 48 };   // cell boundaries line up with the letter (x) and the stairs' front edge (y = 33)
 const PLAT_CX = 60, PLAT_CY = 10.5, PLAT_AX = 75, PLAT_AY = 37.5;
@@ -76,6 +79,7 @@ const baseFaces = () => ['c0', 'c0', 'c0', 'c0', 'c0', 'c0'];
 const grid = new Map();
 const gk = (i, j, k) => i + ',' + j + ',' + k;
 const has = (i, j, k) => grid.has(gk(i, j, k));
+const kindAt = (i, j, k) => grid.get(gk(i, j, k));
 const cen = (i) => (i + 0.5) * G;
 
 function buildLetter() {
@@ -94,15 +98,15 @@ function buildLetter() {
       }
     }
   }
-  // left block: three big steps (15 high, 9 wide) climbing to the landing
+  // left block: three big steps (18 high, 9 wide: exactly one or two cubes each) climbing to the landing, flush with the wall
   for (let i = -1; i < 8; i++) {
-    const top = 15 * (Math.floor((i + 1) / 3) + 1) / G;
-    for (let k = 0; k < top; k++) for (let j = 0; j < JF + 1; j++) put(i, j, k, 'stair');
+    const top = 18 * (Math.floor((i + 1) / 3) + 1) / G;
+    for (let k = 0; k < top; k++) for (let j = 0; j < JF; j++) put(i, j, k, 'stair');
   }
   // landing ledge the explorer stands on
   for (let i = 8; i < 11; i++) for (let j = JF; j < JF + 2; j++) for (let k = (LANDING_Z - 6) / G; k < LANDING_Z / G; k++) put(i, j, k, 'stair');
   // ribbon of small steps down the wall to the doorway
-  for (let st = 1; st <= 7; st++) {
+  for (let st = 1; st <= 8; st++) {
     const top = LANDING_Z - 6 * st;
     for (let j = JF; j < JF + 2; j++) for (let k = Math.max(0, (top - 6) / G); k < top / G; k++) put(10 + st, j, k, 'stair');
   }
@@ -136,7 +140,9 @@ function emitLetter() {
     for (let a = -1; a <= n; a++) for (let b = -1; b <= n; b++) for (let c = -1; c <= n; c++) if (has(i + a, j + b, k + c) && (a < 0 || b < 0 || c < 0 || a >= n || b >= n || c >= n)) occ++;
     const faceCells = 6 * n * n + 12 * n + 8;
     const ao = 1 - Math.max(0, occ / faceCells - 0.5);
-    blocks.push({ X, Y, Z, s, f, t: (hash3(i, j, k, 303) < 0.3 ? 0.04 : 0.45 + 0.8 * hash3(i, j, k, 300)) * Math.max(0.4, ao) });
+    const shoulder = n === 1 && kindAt(i, j, k) === 'body' && X > BOWL.x1 - BOWL.rTop && Z > BOWL.h - BOWL.rTop - 6;
+    const pDark = shoulder ? 0.4 : kindAt(i, j, k) === 'stair' ? 0 : 0.26;      // step treads are always red-lit
+    blocks.push({ X, Y, Z, s, f, t: (hash3(i, j, k, 303) < pDark ? 0.04 : 0.45 + 0.8 * hash3(i, j, k, 300)) * Math.max(0.4, ao) });
   };
   const M = 3;                                 // merge aligned 3x3x3 cell groups into 9-unit cubes
   for (const [key] of grid) {
@@ -248,7 +254,7 @@ function makeTexture(kind, variant, n) {
   const rnd = (x, y, s) => hash3(x, y, seed, s);
   // Voronoi chips: each texel belongs to its nearest site; each site has its own brightness
   const sites = [];
-  const count = Math.max(4, Math.round(n * n / 9));
+  const count = Math.max(4, Math.round(n * n / 11));
   for (let i = 0; i < count; i++) sites.push({ x: rnd(i, 0, 1) * n, y: rnd(i, 1, 2) * n, v: 0.55 + 0.5 * Math.pow(rnd(i, 2, 3), 1.2) });
   const owner = new Int16Array(n * n);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
@@ -261,7 +267,7 @@ function makeTexture(kind, variant, n) {
       const o = owner[y * n + x];
       let f = sites[o].v;
       const edge = (x > 0 && owner[y * n + x - 1] !== o) || (y > 0 && owner[(y - 1) * n + x] !== o);
-      if (edge && rnd(x, y, 4) < 0.55) f *= 0.62;                           // cracks between chips
+      if (edge && rnd(x, y, 4) < 0.45) f *= 0.7;                           // cracks between chips
       if (rnd(x, y, 5) < 0.02) f *= 0.6;                                   // pits
       if (rnd(x, y, 6) < 0.025) f *= 1.25;                                  // chalky flecks
       // bevel: lit top-left edges, shaded bottom-right
@@ -385,14 +391,15 @@ for (const [, list] of groups) {
   tail.lineTo(-8.8, 0.2); tail.lineTo(-4.4, -2.2); tail.lineTo(0, -2.8); tail.closePath();
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.45, bevelEnabled: false }), red, -1.2, 10.5, -0.2, 0, 0.15, 0);
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.3, bevelEnabled: false }), redDark, -1.0, 9.9, -0.9, 0, 0.35, 0.05).scale.set(0.7, 0.6, 1);
+  g.scale.setScalar(1.3);
   g.position.set(28.5, LANDING_Z, 30);
   scene.add(g);
 })();
 
 /* ---------- lights: red is the main light; the white fill is almost nothing ---------- */
-scene.add(new THREE.AmbientLight(0xffffff, 0.1));
+scene.add(new THREE.AmbientLight(0xffffff, 0.075));
 scene.add(new THREE.HemisphereLight(0xb8b4c0, 0x120c0c, 0.1));
-const fill = new THREE.DirectionalLight(0xc8ccd8, 0.32);              // keeps the left faces a touch lighter than the right
+const fill = new THREE.DirectionalLight(0xc8ccd8, 0.26);              // keeps the left faces a touch lighter than the right
 fill.position.set(-80, 70, 160);
 scene.add(fill);
 
@@ -409,8 +416,8 @@ const rim = new THREE.DirectionalLight(0xff1a10, 0);                // grazing r
 rim.position.set(-160, 40, 110);
 scene.add(rim);
 
-const doorInner = new THREE.PointLight(0xff2a1e, 900, 70, 2);         // glow inside the recess
-doorInner.position.set(DOOR.cx, 22, 18);
+const doorInner = new THREE.PointLight(0xff2a1e, 420, 70, 2);         // glow inside the recess
+doorInner.position.set(DOOR.cx, 34, 30);
 const doorMouth = new THREE.PointLight(0xff2418, 1200, 60, 2);        // spill onto floor, steps and wall
 doorMouth.position.set(DOOR.cx, 14, 36);
 scene.add(doorInner, doorMouth);
@@ -421,9 +428,16 @@ const edgeLight = (X, Y, Z, intensity, dist) => {
   l.position.set(X, Z, Y);                                            // scene (X, Y, Z) -> three (x, z, y)
   edgeLights.push(l); scene.add(l);
 };
-for (const z of [92, 70, 48]) edgeLight(19, 31, z, 150, 26);          // left edge of the stem
-for (const z of [60, 36, 14]) edgeLight(117, 34, z, 130, 26);         // right end of the bowl
-edgeLight(48, 30, 100, 90, 22);
+// thin vertical area lights hugging the edges: a continuous red band along the first column of blocks
+const stripLight = (X, Y, Z, w, h, face, intensity) => {                  // scene coords; face: 'front' (+Y) or 'right' (+X)
+  const l = new THREE.RectAreaLight(0xff2418, intensity, w, h);
+  l.position.set(X, Z, Y);
+  l.lookAt(face === 'front' ? X : X - 1, Z, face === 'front' ? Y - 1 : Y);   // RectAreaLight emits away from the lookAt target
+  scene.add(l);
+};
+stripLight(20, 29, 63, 4, 126, 'front', 8);                                // left edge of the stem and the left block
+stripLight(118, 29, 36, 4, 72, 'front', 8);                                // front edge at the right end of the bowl
+stripLight(119, 24, 36, 6, 72, 'right', 8);                                // right end face, along its front edge
 edgeLight(58, 74, -52, 140, 70);                                      // low red glow under the island: the stalactite tips catch it
 edgeLight(112, 62, -36, 90, 55);
 edgeLight(6, 62, -30, 80, 50);                                       // top front corner of the stem
@@ -433,7 +447,10 @@ const bbox = new THREE.Box3();
 blocks.forEach((b) => bbox.expandByPoint(new THREE.Vector3(b.X, b.Z, b.Y)));
 const centre = bbox.getCenter(new THREE.Vector3());
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 2000);
-camera.position.copy(centre).add(new THREE.Vector3(1, 1, 1).normalize().multiplyScalar(700));
+// The reference is a low, front-leaning view (not true isometric): about 17.5 deg elevation, 36 deg azimuth.
+// That makes the front face large and the tops thin slivers.
+const AZ = 36 * Math.PI / 180, EL = 17.5 * Math.PI / 180;
+camera.position.copy(centre).add(new THREE.Vector3(Math.sin(AZ) * Math.cos(EL), Math.sin(EL), Math.cos(AZ) * Math.cos(EL)).multiplyScalar(700));
 camera.lookAt(centre);
 camera.updateMatrixWorld(true);
 let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
