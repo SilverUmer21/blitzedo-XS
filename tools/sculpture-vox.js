@@ -194,6 +194,22 @@ function edgeDist(i, j, k, di, dj, dk) {
   return 0;
 }
 
+const AZ = 40 * Math.PI / 180, EL = 24 * Math.PI / 180;
+const VIEW = [Math.sin(AZ) * Math.cos(EL), Math.cos(AZ) * Math.cos(EL), Math.sin(EL)];   // toward the camera, in (X, Y, Z)
+// Is the edge of voxel (i, j, k) in direction (a, b, c), at distance d, on the silhouette? True when that neighbour is empty and the
+// view ray behind it (away from the camera) never meets stone.
+function silhouette(i, j, k, a, b, c, d) {
+  for (let q = 1; q <= d; q++) if (solid(i + a * q, j + b * q, k + c * q)) return false;
+  let x = i + a * d + 0.5, y = j + b * d + 0.5, z = k + c * d + 0.5;
+  for (let t = 0; t < 320; t++) {
+    x -= VIEW[0] * 0.5; y -= VIEW[1] * 0.5; z -= VIEW[2] * 0.5;
+    const ci = Math.floor(x), cj = Math.floor(y), ck = Math.floor(z);
+    if (!inb(ci, cj, ck)) return true;
+    if (solid(ci, cj, ck)) return false;
+  }
+  return true;
+}
+
 const FACE_DIRS = [[0, 0, 1], [0, 1, 0], [1, 0, 0]];          // top (+Z), front (+Y), right (+X)
 const IN_PLANE = [[[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0]], [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]], [[0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]];
 
@@ -229,31 +245,30 @@ function faceColour(i, j, k, f) {
     } else red = !!(blk && blk.redTop);
     if (kd === KIND.STAIR || kd === KIND.TOWER) red = true;
   } else if (exposedAbove && (kd === KIND.LETTER ? (((Math.floor(cx(i) / 15) + Math.floor(cy(j) / 15)) & 1) === (hash3(Math.floor(cx(i) / 15), Math.floor(cy(j) / 15), Math.floor(cz(k) / 15), 11) < 0.2 ? 1 : 0)) : blk && blk.redTop) && (kd === KIND.LOOSE || kd === KIND.ISLAND || kd === KIND.LETTER || kd === KIND.TOWER)) {
-    red = hash3(i, j, k, 31 + f) < (kd === KIND.LETTER ? 0.12 : kd === KIND.TOWER ? 0.5 : 0.6);   // the red top wraps one voxel down the sides (a lit lip)
+    red = hash3(i, j, k, 31 + f) < (kd === KIND.LETTER ? 0 : kd === KIND.TOWER ? 0 : 0.25);   // the red top wraps one voxel down the sides (a lit lip)
   }
 
-  // broken red rims along the letter's and the stairs' outer edges
-  if (!red && f > 0 && (kd === KIND.LETTER || kd === KIND.TOWER)) {
-    const dirs = IN_PLANE[f].filter((d) => d[2] === 0);         // vertical edges only: left / right ends of a face
-    let dmin = 9, along = 0;
-    for (const [a, bb, c] of dirs) {
-      const d = edgeDist(i, j, k, a, bb, c);
-      if (d && d < dmin) { dmin = d; along = k; }
-    }
-    if (dmin <= 3) {
-      const w = 1 + (hash3(along, f, kd, 33) > 0.6 ? 1 : 0);
-      const on = vnoise(along, f, kd, 4, 35) > 0.28;
-      if (on && dmin <= w) red = hash3(i, j, k, 36) < 0.92;
+  // red outline: a face pixel whose edge borders the background (the shape's silhouette from the camera) is lit red.
+  // Inner edges, where the view ray past the edge hits more stone, stay black, so the b and the island read by their outline.
+  if (!red && f > 0) {
+    const letterish = kd === KIND.LETTER || kd === KIND.TOWER || kd === KIND.STAIR;
+    for (const [a, bb, c] of IN_PLANE[f]) {
+      if (c > 0 && letterish) continue;                       // top edges of the letter are covered by the top checker
+      // band width: 1 voxel always, 2 often, 3 sometimes, so the inner edge of the red band is ragged (wider on the letter)
+      const band = letterish ? [1, 0.8, 0.4] : [0.95, 0.3, 0];
+      let hit = false;
+      for (let d = 1; d <= 3 && !hit; d++) {
+        if (!(band[d - 1] > 0) || hash3(i, j, k, 36 + d) >= band[d - 1]) continue;
+        let inner = true;                                     // the d-1 voxels toward the edge are part of this same face
+        for (let q = 1; q < d && inner; q++) inner = solid(i + a * q, j + bb * q, k + c * q) && !solid(i + a * q + FACE_DIRS[f][0], j + bb * q + FACE_DIRS[f][1], k + c * q + FACE_DIRS[f][2]);
+        if (inner && silhouette(i + a * (d - 1), j + bb * (d - 1), k + c * (d - 1), a, bb, c, 1)) hit = true;
+      }
+      if (hit) {
+        red = letterish ? vnoise(c === 0 ? k : (a !== 0 ? i : j), a + 2 * bb + 4 * c, f, 5, 35) > 0.14 : true;
+        if (red) break;
+      }
     }
   }
-
-  // island: red stalactite tips and a few red pixels on the fronts
-  if (!red && (kd === KIND.ISLAND || kd === KIND.LOOSE)) {
-    const bottom = !solid(i, j, k - 1) && cz(k) < -12;
-    const tip = bottom && !solid(i + 1, j, k) && !solid(i, j + 1, k);   // the lowest voxel of a free-hanging column
-    if (bottom) red = hash3(i, j, k, 37) < (tip ? 0.8 : 0.08);
-    else if (f > 0) red = hash3(i, j, k, 39) < 0.008;
-  } else if (!red && f > 0 && kd === KIND.LETTER) red = hash3(i, j, k, 39) < 0.006;
 
   // spill from the gate onto the frame and the floor just outside it
   let spill = 0;
@@ -354,7 +369,6 @@ const LANDING_Z = TOP_Z;
 /* ---------- camera + render ---------- */
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 4000);
 const centre = new THREE.Vector3(60, 0, 30);
-const AZ = 40 * Math.PI / 180, EL = 24 * Math.PI / 180;
 camera.position.copy(centre).add(new THREE.Vector3(Math.sin(AZ) * Math.cos(EL), Math.sin(EL), Math.cos(AZ) * Math.cos(EL)).multiplyScalar(1500));
 camera.lookAt(centre);
 camera.updateMatrixWorld(true);

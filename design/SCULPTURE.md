@@ -45,13 +45,16 @@ How the home page sculpture (`assets/sculpture.webp`) is built, and how each par
 **Red light (painted, the way the reference does it)**
 - Letter tops: a checker of big blocks, red and dark, with about 20 % swapped so it never looks mechanical.
 - Island tops: the same checker per island block. Stair treads, tower tops and loose cubes: always red.
-- Lip: a red top sometimes wraps one pixel down the sides. Most on the island and loose cubes (60 %), rare on the
-  letter (12 %), never on the stair risers, which stay dark.
-- Rims: broken 1–2 pixel red bands run down the letter's and the tower's outer vertical edges. A 1-D noise along the
-  edge switches them on and off, so they read as light catching the edge, not a painted stripe. The gate's opening never
-  gets a rim.
-- Specks: very sparse single red pixels on the fronts (0.6 % letter, 0.8 % island).
-- Stalactite tips: the lowest voxel of a free-hanging column is red 80 % of the time; other bottom voxels only 8 %.
+- Lip: on the island and loose cubes a red top sometimes wraps one pixel down the sides (25 %); never on the letter, tower or
+  stairs, so the red outline is always followed by black below.
+- **Outline, not dots** (the key rule): a face pixel is red only where its edge borders the background, i.e. the shape's
+  silhouette from the camera. The generator checks each voxel edge: if the neighbour cell is empty and the view ray behind
+  it (away from the camera) never meets stone, the edge is on the outline. Inner edges stay black. So the b reads as a red
+  outline around a black body, the island's underside is black with a red silhouette and red tips, and the stairs and tower
+  are red along their outer edges, not on their fronts.
+- Band width: on the letter, tower and stairs the outline is 1 voxel always, 2 often, 3 sometimes (a ragged inner edge), broken
+  now and then by noise along the edge; on the island it is 1 voxel, sometimes 2.
+- No random red specks anywhere.
 
 **The gate (the red light is different here)**
 - The gate is an arched opening recessed one big block. The arch is a semicircle cut on the voxel grid, so it comes out
@@ -97,7 +100,7 @@ CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/build-sculpture.js
 
 Then update the `<img>` `width` and `height` in `index.html` to the printed size.
 
-## Where it still differs from the reference (≈ 70 %)
+## Where it still differs from the reference (≈ 75 %)
 
 - The reference's stone has finer grain inside each pixel. Ours is one flat colour per voxel, because the voxel size is
   kept chunky on purpose.
