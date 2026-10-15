@@ -4,7 +4,6 @@
   var toggle = document.querySelector('.menu-toggle');
   var nav = document.getElementById('site-nav');
   if (!toggle || !nav) return;
-  var label = toggle.querySelector('.menu-toggle__label');
 
   function isOpen() { return toggle.getAttribute('aria-expanded') === 'true'; }
 
@@ -12,7 +11,7 @@
     toggle.setAttribute('aria-expanded', String(open));
     nav.classList.toggle('is-open', open);
     document.documentElement.classList.toggle('menu-open', open);
-    if (label) label.textContent = label.getAttribute(open ? 'data-open' : 'data-closed');
+    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
   }
 
   toggle.addEventListener('click', function () {
