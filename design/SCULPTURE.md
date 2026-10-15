@@ -132,10 +132,14 @@ he matches the sculpture's 3D pixel look. The build renders 14 frames into `asse
 
 ![Explorer frames](../references/explorer-frames.png)
 
-## Demo: pixel-texture red and stone (not live; see `demo.html`)
+## Red: pixel-art tiles (live)
 
-`DEMO=redtex CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/build-sculpture.js` renders `assets/demo-redtex.webp`:
-each red block top gets a crafted 6 × 6 pixel tile (lit top-left edge, shaded bottom-right edge, a dark corner and specks),
-like the explorer's texture. `DEMO=stonetex` does the same for the stone (lit top-left edge, shaded bottom-right edge and dark
-corner, two or three lighter chips, a few pits); `DEMO=pixeltex` combines both. Several at once: `DEMO=redtex,stonetex,pixeltex`.
-`demo.html` shows the home page with a switcher between the current render and the demos. Red comparison: [`demo-redtex-compare.png`](references/sculpture/demo-redtex-compare.png).
+Every red block top is a crafted 6 × 6 pixel tile, like the explorer's texture: a lit top-left edge, a shaded bottom-right edge,
+a dark corner and a few highlight / shade specks inside (`redTile` in `tools/sculpture-vox.js`). The old flat red can still be
+rendered with `DEMO=flatred`. Comparison with the old red: [`demo-redtex-compare.png`](references/sculpture/demo-redtex-compare.png).
+
+## Demo: pixel-art stone (not live; see `demo.html`)
+
+`DEMO=stonetex` gives the stone the same treatment (lit top-left edge, shaded bottom-right edge and dark corner, two or three
+lighter chips, a few pits); `DEMO=pixeltex` is that with the red tiles. Several at once: `DEMO=flatred,pixeltex`.
+`demo.html` shows the home page with a switcher between the live render, the old flat red and the stone demo.

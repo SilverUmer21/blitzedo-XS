@@ -205,9 +205,9 @@ function roughen() {
 const STONE_FACE = { top: 1.5, front: 1.0, right: 0.74 };
 const RED_FACE = { top: 1.0, front: 0.86, right: 0.66 };
 const REDS = [[0.93, 0.17, 0.15], [0.88, 0.14, 0.12], [0.98, 0.27, 0.22], [0.74, 0.1, 0.09]];
-const DEMO_REDTEX = /demo=(redtex|pixeltex)/.test(location.search);
+const DEMO_REDTEX = !/demo=flatred/.test(location.search);   // pixel-art red tiles are the live look; ?demo=flatred renders the old flat red
 const DEMO_STONETEX = /demo=(stonetex|pixeltex)/.test(location.search);
-// demo: red as a crafted pixel-art tile per big block (like the explorer's pixel art): lit top-left edge, shaded bottom-right
+// red as a crafted pixel-art tile per big block (like the explorer's pixel art): lit top-left edge, shaded bottom-right
 // edge, a dark corner, and a few highlight / shade specks inside
 function redTile(i, j, k, f) {
   const loc = (v) => Math.floor((((v % 15) + 15) % 15) / V);          // 0..5 within the block
