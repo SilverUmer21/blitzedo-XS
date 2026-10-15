@@ -35,8 +35,8 @@ How the home page sculpture (`assets/sculpture.webp`) is built, and how each par
 
 **Stone (every block face)**
 - Each block has its own tone (±0.015) so neighbouring blocks differ slightly.
-- Inside a face: about 20 % lighter 2 × 2 chips, about 10 % single light flecks, about 8 % dark pits, plus a soft
-  low-frequency variation.
+- Inside a face (strong grain): about 24 % lighter 2 × 2 chips, 14 % light flecks, 12 % dark pits, 18 % darker 3 × 3
+  patches, plus a soft low-frequency variation.
 - Face shading: top × 1.5, front × 1.0, right × 0.74, so tops read as lighter grey and right faces as darkest.
 - Seams: where the block changes inside a face, the lower or right edge pixel is darkened (× 0.72) and the upper or left
   edge is lit (× 1.16). This draws the dark cracks and lit bevels between big blocks.
@@ -68,7 +68,7 @@ How the home page sculpture (`assets/sculpture.webp`) is built, and how each par
 
 They start at the gate and end at a small doorway in the stem:
 
-1. **Threshold**: two red tile rows in front of the gate.
+1. **Gate step**: a raised platform of red tiles (with dark joints) in front of the gate, where the stairs start.
 2. **Lower flight**: 8 steps (5 run, 5 rise) climb left along the stem's front to the tower.
 3. **Mid landing**: the front of the tower at the b's front-left, 45 high, with red rims on its edges. The stairs turn here.
 4. **Upper flight**: 3 steps climb back toward the stem.
@@ -79,6 +79,12 @@ Treads are red; risers are dark stone.
 
 ## Island
 
+- Each top block hangs as its **own column**: it tapers in jagged steps (5, 4, 3, 2, 1 voxels wide, 3–5 voxels per step,
+  chipped corners), so neighbouring columns are separated by black gaps, as in the reference.
+- Red under the island: the bottom tips, patchy red along the silhouette edges, and red on some of the step ledges
+  (where light catches the rough underside). The column fronts stay black.
+- Rough surface: random one-voxel dents in the side faces (7 % on the island, 2.5 % on the b).
+
 - A slab of big blocks with a rounded-rectangle outline; the odd edge block sits lower.
 - Each block hangs into 2 × 2 half-block columns. Their depth follows a cone that is deepest under the middle. Under each
   column hang 2 × 2 quarter-block tips, 1–4 long, with red bottoms.
@@ -87,8 +93,8 @@ Treads are red; risers are dark stone.
 ## The b
 
 - **Stem**: 30 × 30 × 120.
-- **Bowl**: 90 long, 30 deep, 75 high. Its right end is two big blocks, and its top-right curve is cut on a 2-voxel grid
-  so it steps in chunky pixels.
+- **Bowl**: 90 long, 30 deep, 75 high. Its right end is two big blocks; its top-right curve has radius 45 and is cut
+  voxel by voxel so it reads round. The curved shoulder carries red only at its front and back edges.
 - **Gate**: 30 wide, a 37.5-high rectangle under a radius-15 arch.
 
 ## Rebuild
@@ -100,7 +106,7 @@ CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/build-sculpture.js
 
 Then update the `<img>` `width` and `height` in `index.html` to the printed size.
 
-## Where it still differs from the reference (≈ 75 %)
+## Where it still differs from the reference (≈ 80 %)
 
 - The reference's stone has finer grain inside each pixel. Ours is one flat colour per voxel, because the voxel size is
   kept chunky on purpose.

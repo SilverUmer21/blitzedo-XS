@@ -63,14 +63,13 @@ function fillBox(x0, x1, y0, y1, z0, z1, k, b) {  // units; cells whose centres 
 
 /* ---------- the b ---------- */
 const STEM = { x0: 30, x1: 60, y0: 15, y1: 45, h: 120 };
-const BOWL = { x0: 45, x1: 135, y0: 15, y1: 45, h: 75, rTop: 37.5 };
+const BOWL = { x0: 45, x1: 135, y0: 15, y1: 45, h: 75, rTop: 45 };
 const DOOR = { x0: 75, x1: 105, zRect: 37.5, cx: 90, r: 15, recessY: 30 };   // arched gate, recessed one big block
 const inCircle = (x, z, ox, oz, r) => (x - ox) ** 2 + (z - oz) ** 2 <= r * r;
 function inBowl(X, Z) {
   if (X < BOWL.x0 || X >= BOWL.x1 || Z < 0 || Z >= BOWL.h) return false;
   const ox = BOWL.x1 - BOWL.rTop, oz = BOWL.h - BOWL.rTop;
-  const Xs = Math.floor(X / 5) * 5 + 2.5, Zs = Math.floor(Z / 5) * 5 + 2.5;     // the curve is cut on a 2-voxel grid: bigger steps
-  return !(Xs > ox && Zs > oz && !inCircle(Xs, Zs, ox, oz, BOWL.rTop));
+  return !(X > ox && Z > oz && !inCircle(X, Z, ox, oz, BOWL.rTop));     // cut voxel by voxel: a round curve
 }
 const inStem = (X, Z) => X >= STEM.x0 && X < STEM.x1 && Z >= 0 && Z < STEM.h;
 const inDoor = (X, Z) => X >= DOOR.x0 && X < DOOR.x1 && Z >= 0 && (Z < DOOR.zRect || inCircle(X, Z, DOOR.cx, DOOR.zRect, DOOR.r));
@@ -109,7 +108,7 @@ function buildStairs() {
   for (let s = 1; s <= 3; s++) fillBox(10, 30, 50 - STEP * s, 55 - STEP * s, 0, MID_Z + STEP * s, KIND.STAIR, newBlock(true));
   fillBox(10, 30, 25, 35, 0, TOP_Z, KIND.TOWER, newBlock(true));                                    // top landing, beside the stem
   for (let s = 0; s < 8; s++) fillBox(30 + STEP * s, 35 + STEP * s, 45, 55, 0, MID_Z - STEP * (s + 1), KIND.STAIR, newBlock(true));
-  fillBox(70, 110, 45, 55, 0, 2.5, KIND.THRESH, newBlock(true));                                   // threshold: two tile rows
+  fillBox(65, 110, 45, 57.5, 0, 5, KIND.THRESH, newBlock(true));                                   // the gate's step: a raised platform of red tiles
   // the small doorway: a dark recess in the stem's front at the top landing
   for (let i = vi(SMALL_DOOR.x0); i < vi(SMALL_DOOR.x1); i++) for (let j = vj(SMALL_DOOR.y0); j < vj(SMALL_DOOR.y1); j++) for (let k = vk(SMALL_DOOR.z0); k < vk(SMALL_DOOR.zRect + SMALL_DOOR.r); k++) {
     const X = cx(i), Z = cz(k);
@@ -137,19 +136,21 @@ function buildIsland() {
     const red = covered ? false : ((ci + cj) & 1) === (hash3(ci, cj, 5, 7) < 0.25 ? 1 : 0);
     const h1 = rim ? [15, 22.5][Math.floor(hash3(ci, cj, 2, 9) * 2)] : 15;
     fillBox(x - 7.5, x + 7.5, y - 7.5, y + 7.5, top - h1, top, KIND.ISLAND, newBlock(red));
-    // hanging columns: 2 x 2 half blocks, each with 2 x 2 quarter-block tips
-    const D = depthAt(x, y);
-    for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
-      const xs = x - 3.75 + a * 7.5, ys = y - 3.75 + b * 7.5, hh = ci * 977 + cj * 131 + a * 17 + b * 5;
-      const L2 = Math.max(0, Math.round((D * (0.55 + 0.7 * hash3(hh, 1, 0, 3)) - h1) / 7.5));
-      const z1 = top - h1;
-      for (let q = 0; q < L2; q++) fillBox(xs - 3.75, xs + 3.75, ys - 3.75, ys + 3.75, z1 - 7.5 * (q + 1), z1 - 7.5 * q, KIND.ISLAND, newBlock(false));
-      const z2 = z1 - 7.5 * L2;
-      for (let c = 0; c < 2; c++) for (let d = 0; d < 2; d++) {
-        const h3 = hh * 13 + c * 3 + d;
-        const L3 = hash3(h3, 2, 0, 4) < 0.6 ? 1 + Math.floor(hash3(h3, 3, 0, 5) * 4) : 0;   // pointed tips
-        if (L3) fillBox(xs - 3.75 + c * 3.75, xs + c * 3.75, ys - 3.75 + d * 3.75, ys + d * 3.75, z2 - 3.75 * L3, z2, KIND.ISLAND, newBlock(false));
+    // hanging column: this block's own stalactite, tapering in jagged steps (5, 4, 3, 2, 1 voxels wide), a black gap to its neighbours
+    const D = h1 + (22 + 48 * Math.pow(Math.max(0, 1 - rr), 0.7)) * (0.7 + 0.6 * r);
+    const i0 = vi(x - 7.5), j0 = vj(y - 7.5);                                   // the cell's first voxel (6 voxels per side)
+    let z = top - h1, w = 5, ox = Math.floor(hash3(ci, cj, 3, 1) * 2), oy = Math.floor(hash3(ci, cj, 4, 1) * 2);
+    const b2 = newBlock(false); blocks[b2].column = true;
+    while (z > top - D && w > 0) {
+      const lev = 3 + Math.floor(hash3(ci * 7 + w, cj, 5, 2) * 3);           // 3-5 voxels per step
+      for (let ii = 0; ii < w; ii++) for (let jj = 0; jj < w; jj++) {
+        if ((ii === 0 || ii === w - 1) && (jj === 0 || jj === w - 1) && hash3(ci * 31 + ii, cj * 17 + jj, w, 6) < 0.5) continue;   // chipped corners
+        const I = i0 + ox + ii + (w < 5 ? 1 : 0), J = j0 + oy + jj + (w < 5 ? 1 : 0);
+        for (let kk = 0; kk < lev; kk++) { const K2 = vk(z) - 1 - kk; if (inb(I, J, K2)) { kind[idx(I, J, K2)] = KIND.ISLAND; bid[idx(I, J, K2)] = b2; } }
       }
+      z -= lev * V;
+      w -= 1;
+      if (w < 5) { ox = Math.min(5 - w, Math.max(0, ox + (hash3(ci, cj, w, 7) < 0.5 ? 0 : 1) - (w < 4 ? 1 : 0))); oy = Math.min(5 - w, Math.max(0, oy + (hash3(cj, ci, w, 8) < 0.5 ? 0 : 1) - (w < 4 ? 1 : 0))); }
     }
   }
 }
@@ -167,6 +168,21 @@ buildIsland();
 buildLetter();
 buildStairs();
 buildLoose();
+roughen();
+
+/* ---------- rough surface: random one-voxel dents in the visible faces of the island and the b ---------- */
+function roughen() {
+  const out = [];
+  for (let i = 1; i < NX - 1; i++) for (let j = 1; j < NY - 1; j++) for (let k = 1; k < NZ - 1; k++) {
+    const kd = kind[idx(i, j, k)];
+    if (kd !== KIND.ISLAND && kd !== KIND.LETTER) continue;
+    const fx = !solid(i + 1, j, k) && solid(i - 1, j, k), fy = !solid(i, j + 1, k) && solid(i, j - 1, k);
+    if (!(fx || fy) || !solid(i, j, k + 1)) continue;                         // side faces only, never the tops
+    if (kd === KIND.LETTER && (K(i + 1, j, k) >= 254 || K(i, j + 1, k) >= 254 || cz(k) < 5)) continue;
+    if (hash3(i, j, k, 90) < (kd === KIND.ISLAND ? 0.07 : 0.025)) out.push(idx(i, j, k));
+  }
+  out.forEach((n) => { kind[n] = 0; });
+}
 
 /* ---------- colour ---------- */
 const STONE_FACE = { top: 1.5, front: 1.0, right: 0.74 };
@@ -179,13 +195,14 @@ function redColour(i, j, k, f) {
   return [c[0] * m, c[1] * m, c[2] * m];
 }
 function stoneValue(i, j, k, f, b) {
-  let v = 0.125 + (blocks[b] ? blocks[b].tone : 0);
-  const n = hash3(i, j, k, 20 + f), c2 = hash3(i >> 1, j >> 1, k >> 1, 23 + f);
-  if (c2 > 0.8) v += 0.055;                                   // lighter 2 x 2 chips
-  if (n > 0.9) v += 0.04;                                     // single light flecks
-  if (n < 0.08) v -= 0.035;                                   // pits
-  v += (vnoise(i, j, k, 5, 25 + f) - 0.5) * 0.04;
-  return Math.max(0.03, v);
+  let v = 0.12 + (blocks[b] ? blocks[b].tone : 0);
+  const n = hash3(i, j, k, 20 + f), c2 = hash3(i >> 1, j >> 1, k >> 1, 23 + f), c3 = hash3(Math.floor(i / 3), Math.floor(j / 3), Math.floor(k / 3), 24 + f);
+  if (c2 > 0.76) v += 0.085;                                  // lighter 2 x 2 chips
+  if (n > 0.86) v += 0.06;                                    // single light flecks
+  if (n < 0.12) v -= 0.05;                                    // pits
+  if (c3 < 0.18) v -= 0.035;                                  // darker 3 x 3 patches
+  v += (vnoise(i, j, k, 5, 25 + f) - 0.5) * 0.05;
+  return Math.max(0.025, v);
 }
 
 // distance (1..3, 0 = none) along an in-plane direction to the outside (real air, not the gate's recess)
@@ -237,9 +254,14 @@ function faceColour(i, j, k, f) {
 
   const exposedAbove = !solid(i, j, k + 1);
   let red = false;
-  if (kd === KIND.THRESH) red = true;
+  if (kd === KIND.THRESH) {                                   // tiles: red tops with dark joints, black front below a red lip
+    if (f === 0) { if (i % 4 === 0 || j === vj(51.25)) return [0.45, 0.07, 0.06]; red = true; }
+    else red = exposedAbove;
+  }
   else if (f === 0) {
-    if (kd === KIND.LETTER) {                                 // letter tops: a red / dark checker of big blocks, a few swapped
+    const onCurve = kd === KIND.LETTER && cx(i) > BOWL.x1 - BOWL.rTop && cz(k) > BOWL.h - BOWL.rTop && cz(k) < BOWL.h - 3;
+    if (onCurve) red = silhouette(i, j, k, 0, 1, 0, 1) || silhouette(i, j, k, 0, -1, 0, 1);   // curved shoulder: red only at its front / back edge
+    else if (kd === KIND.LETTER) {                            // letter tops: a red / dark checker of big blocks, a few swapped
       const hi = Math.floor(cx(i) / 15), hj = Math.floor(cy(j) / 15), hk = Math.floor(cz(k) / 15);
       red = ((hi + hj) & 1) === (hash3(hi, hj, hk, 11) < 0.2 ? 1 : 0);
     } else red = !!(blk && blk.redTop);
@@ -255,7 +277,7 @@ function faceColour(i, j, k, f) {
     for (const [a, bb, c] of IN_PLANE[f]) {
       if (c > 0 && letterish) continue;                       // top edges of the letter are covered by the top checker
       // band width: 1 voxel always, 2 often, 3 sometimes, so the inner edge of the red band is ragged (wider on the letter)
-      const band = letterish ? [1, 0.8, 0.4] : [0.95, 0.3, 0];
+      const band = letterish ? [1, 0.8, 0.4] : kd === KIND.LOOSE ? [0.7, 0, 0] : [0.95, 0.3, 0];
       let hit = false;
       for (let d = 1; d <= 3 && !hit; d++) {
         if (!(band[d - 1] > 0) || hash3(i, j, k, 36 + d) >= band[d - 1]) continue;
@@ -264,10 +286,17 @@ function faceColour(i, j, k, f) {
         if (inner && silhouette(i + a * (d - 1), j + bb * (d - 1), k + c * (d - 1), a, bb, c, 1)) hit = true;
       }
       if (hit) {
-        red = letterish ? vnoise(c === 0 ? k : (a !== 0 ? i : j), a + 2 * bb + 4 * c, f, 5, 35) > 0.14 : true;
+        red = letterish ? vnoise(c === 0 ? k : (a !== 0 ? i : j), a + 2 * bb + 4 * c, f, 5, 35) > 0.14
+          : c < 0 ? hash3(i, j, k, 43) < 0.8                                  // island: bottom tips stay red
+          : vnoise(k + i * 3, j + 7 * (a + 2 * bb), f, 2.5, 44) > 0.5;       // island sides: patchy, not a continuous border
         if (red) break;
       }
     }
+  }
+
+  // red catching the underside edges of the island's stepped columns and dents: the inner red lines of the reference
+  if (!red && f > 0 && (kd === KIND.ISLAND || kd === KIND.LOOSE) && cz(k) < -2) {
+    if (blk && blk.column && !solid(i, j, k - 1)) red = hash3(i, j, k, 41) < 0.4;    // a ledge of a stepped column: nothing below this voxel
   }
 
   // spill from the gate onto the frame and the floor just outside it
