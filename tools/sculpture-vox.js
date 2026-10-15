@@ -63,7 +63,7 @@ function fillBox(x0, x1, y0, y1, z0, z1, k, b) {  // units; cells whose centres 
 
 /* ---------- the b ---------- */
 const STEM = { x0: 30, x1: 60, y0: 15, y1: 45, h: 120 };
-const BOWL = { x0: 45, x1: 135, y0: 15, y1: 45, h: 75, rTop: 45, rBot: 30 };
+const BOWL = { x0: 45, x1: 135, y0: 15, y1: 45, h: 75, rTop: 45, rBot: 0 };
 const DOOR = { x0: 75, x1: 105, zRect: 37.5, cx: 90, r: 15, recessY: 30 };   // arched gate, recessed one big block
 const inCircle = (x, z, ox, oz, r) => (x - ox) ** 2 + (z - oz) ** 2 <= r * r;
 function inBowl(X, Z) {
@@ -71,7 +71,7 @@ function inBowl(X, Z) {
   const ox = BOWL.x1 - BOWL.rTop, oz = BOWL.h - BOWL.rTop;
   if (X > ox && Z > oz && !inCircle(X, Z, ox, oz, BOWL.rTop)) return false;   // cut voxel by voxel: a round curve
   const bx = BOWL.x1 - BOWL.rBot, bz = BOWL.rBot;
-  return !(X > bx && Z < bz && !inCircle(X, Z, bx, bz, BOWL.rBot));          // the curved bottom ending of the bowl
+  return !(BOWL.rBot && X > bx && Z < bz && !inCircle(X, Z, bx, bz, BOWL.rBot));
 }
 const inStem = (X, Z) => X >= STEM.x0 && X < STEM.x1 && Z >= 0 && Z < STEM.h;
 const inDoor = (X, Z) => X >= DOOR.x0 && X < DOOR.x1 && Z >= 0 && (Z < DOOR.zRect || inCircle(X, Z, DOOR.cx, DOOR.zRect, DOOR.r));
@@ -114,8 +114,8 @@ function buildStairs() {
   const stepBlock = newBlock(true);
   for (let i = vi(65); i < vi(137.5); i++) for (let j = vj(15); j < vj(57.5); j++) {
     const X = cx(i), Y = cy(j);
-    const front = Y >= 45 && X < 135 - Math.max(0, Y - 45) * 0.8;            // front strip, its right end rounded off
-    const under = Y < 45 && !inBowl(X, 1.25) && X < 135;                     // the floor under the bowl's curved ending
+    const front = Y >= 45 && X < 110;                                        // in front of the gate only
+    const under = false;
     if (!front && !under) continue;
     for (let k = vk(0); k < vk(5); k++) if (inb(i, j, k) && kind[idx(i, j, k)] === 0) { kind[idx(i, j, k)] = KIND.THRESH; bid[idx(i, j, k)] = stepBlock; }
   }
@@ -127,7 +127,12 @@ const PLAT = { cx: 70, cy: 36, ax: 88, ay: 50 };
 const rOf = (x, y) => Math.pow(Math.abs((x - PLAT.cx) / PLAT.ax) ** 4 + Math.abs((y - PLAT.cy) / PLAT.ay) ** 4, 1 / 4);
 const depthAt = (x, y) => 12 + 72 * Math.pow(Math.max(0, 1 - Math.min(1, rOf(x, y))), 1.2);
 const underLetter = (x, y) => x > 0 && x < 140 && y > 0 && y < 65;
+let LINE_CELLS = new Set();
 function buildIsland() {
+  // the three red light lines: front-row columns on the left half (the frontmost cell of chosen columns ci)
+  for (const ci of [1, 3, 5]) for (let cj = 10; cj >= -6; cj--) {
+    if (rOf(ci * CELL + CELL / 2, cj * CELL + CELL / 2) <= 1) { LINE_CELLS.add(ci + ',' + cj); break; }
+  }
   for (let ci = -8; ci <= 14; ci++) for (let cj = -6; cj <= 10; cj++) {
     const x = ci * CELL + CELL / 2, y = cj * CELL + CELL / 2;
     const rr = rOf(x, y);
@@ -145,6 +150,7 @@ function buildIsland() {
     const i0 = vi(x - 7.5), j0 = vj(y - 7.5);                                   // the cell's first voxel (6 voxels per side)
     let z = top - h1, w = 5, ox = Math.floor(hash3(ci, cj, 3, 1) * 2), oy = Math.floor(hash3(ci, cj, 4, 1) * 2);
     const b2 = newBlock(false); blocks[b2].column = true;
+    if (LINE_CELLS.has(ci + ',' + cj)) blocks[b2].line = true;
     while (z > top - D && w > 0) {
       const lev = 3 + Math.floor(hash3(ci * 7 + w, cj, 5, 2) * 3);           // 3-5 voxels per step
       for (let ii = 0; ii < w; ii++) for (let jj = 0; jj < w; jj++) {
@@ -172,6 +178,14 @@ buildIsland();
 buildLetter();
 buildStairs();
 buildLoose();
+// the bowl's right foot flares out in a black concave curve and merges into the island (no light on it)
+{
+  const fb = newBlock(false);
+  for (let i = vi(135); i < vi(155); i++) for (let j = vj(15); j < vj(45); j++) for (let k = vk(0); k < vk(20); k++) {
+    const X = cx(i), Z = cz(k);
+    if ((X - 155) ** 2 + (Z - 20) ** 2 > 400 && inb(i, j, k) && kind[idx(i, j, k)] === 0) { kind[idx(i, j, k)] = KIND.ISLAND; bid[idx(i, j, k)] = fb; }
+  }
+}
 roughen();
 
 /* ---------- rough surface: random one-voxel dents in the visible faces of the island and the b ---------- */
@@ -293,7 +307,7 @@ function faceColour(i, j, k, f) {
       if (hit) {
         red = letterish ? vnoise(c === 0 ? k : (a !== 0 ? i : j), a + 2 * bb + 4 * c, f, 5, 35) > 0.14
           : c < 0 ? true                                                      // island: the bottom edge of each column tip is red
-          : hash3(b, a + 2 * bb + 5, f, 44) < 0.55 && cz(k) < 0;           // island sides: whole vertical edge lines, on or off per column edge
+          : !!(blk && blk.line) && cz(k) < 0;                                // island sides: only the three chosen columns carry a line
         if (red) break;
       }
     }
@@ -302,9 +316,9 @@ function faceColour(i, j, k, f) {
   // red catching the underside edges of the island's stepped columns and dents: the inner red lines of the reference
   if (!red && f > 0 && (kd === KIND.ISLAND || kd === KIND.LOOSE) && cz(k) < -2) {
     // vertical red lines down the column edges that face a gap (between columns too), whole edge on or off per column
-    if (blk && blk.column) for (const [a2, b2, c2] of IN_PLANE[f]) {
-      if (c2 !== 0 || solid(i + a2, j + b2, k)) continue;
-      if (hash3(b, a2 + 2 * b2 + 5, f, 45) < 0.38) { red = true; break; }
+    if (blk && blk.line && f === 1) for (const [a2, b2, c2] of IN_PLANE[f]) {
+      if (c2 !== 0 || a2 !== -1 || solid(i + a2, j + b2, k)) continue;      // one line: the column's left front edge
+      red = true; break;
     }
   }
 
