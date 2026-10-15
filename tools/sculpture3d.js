@@ -106,11 +106,9 @@ function buildLetter() {
       }
     }
   }
-  // stairs: four big steps, each two big blocks wide (the stem's width), descending from the stem toward the viewer
-  putBox(30, 60, 45, 60, 0, 60, 'stair');                                  // top step / landing, where the explorer stands
-  putBox(30, 60, 60, 75, 0, 45, 'stair');
-  putBox(30, 60, 75, 90, 0, 30, 'stair');
-  putBox(30, 60, 90, 105, 0, 15, 'stair');
+  // stairs, as in the reference: a landing block against the stem's front-left (big blocks, 60 high, where the explorer stands),
+  // then one flight running right along the front wall, down to the gate (emitStairs)
+  putBox(15, 30, 30, 60, 0, 60, 'stair');                                  // landing at the stem's left edge
   chips.forEach(([i, j, k]) => grid.delete(gk(i, j, k)));
 }
 
@@ -118,22 +116,19 @@ function buildLetter() {
 // steps drop toward the viewer from it; then a thin flight (7.5 deep) of eight steps runs right along the stem's front, down to the gate.
 // Each step is a dark stone column topped by a lit tread block, so the treads read as a crisp staircase.
 function emitStairs() {
-  const q = 3.75, h = 7.5;
-  let c = 0;
-  const cube = (X, Y, Z, sz, t) => {
-    const f = baseFaces();
-    f[2] = 'c' + Math.floor(hash3(c, 1, 0, 250) * 4); f[0] = 'c' + Math.floor(hash3(c, 2, 0, 251) * 4); f[4] = 'c' + Math.floor(hash3(c, 3, 0, 252) * 4);
-    blocks.push({ X, Y, Z, s: sz, f, t }); c++;
-  };
-  const step = (X, Y, top, from) => {                                  // small cubes from 'from' up to the tread
-    const n = Math.round((top - from) / q);
-    for (let k = 0; k < n; k++) cube(X, Y, from + k * q + q / 2, q, k === n - 1 ? 1.1 : 0.6 + 0.3 * hash3(c, 4, 0, 253));
-  };
-  // landing block (x 30..37.5, y 45..60): solid 7.5 cubes up to 45, then the landing and three steps toward the viewer in small cubes
-  for (let yy = 0; yy < 2; yy++) for (let k = 0; k < 6; k++) cube(30 + h / 2, 45 + h / 2 + yy * h, k * h + h / 2, h, 0.6 + 0.3 * hash3(yy, k, 0, 254));
-  for (let x = 0; x < 2; x++) for (let r = 0; r < 4; r++) step(30 + q / 2 + x * q, 45 + q / 2 + r * q, [60, 56.25, 52.5, 48.75][r], 45);
-  // the flight down to the gate: eight steps, 7.5 deep
-  for (let st = 0; st < 8; st++) for (let r = 0; r < 2; r++) step(37.5 + q / 2 + st * q, 45 + q / 2 + r * q, 52.5 - st * 7.5, 0);
+  // six steps of 7.5 cubes (7.5 run, 7.5 rise), one big block deep, from the landing down along the stem's front to the gate
+  const h = 7.5;
+  for (let st = 0; st < 6; st++) {
+    const top = 52.5 - st * h, X = 30 + h / 2 + st * h;
+    for (let r = 0; r < 2; r++) {
+      const n = Math.round(top / h);
+      for (let k = 0; k < n; k++) {
+        const f = baseFaces();
+        f[2] = 'c' + Math.floor(hash3(st, r, k, 250) * 4); f[0] = 'c' + Math.floor(hash3(st, r, k, 251) * 4); f[4] = 'c' + Math.floor(hash3(st, r, k, 252) * 4);
+        blocks.push({ X, Y: 45 + h / 2 + r * h, Z: k * h + h / 2, s: h, f, t: k === n - 1 ? 1.2 : 0.55 + 0.3 * hash3(st, r, k, 253) });
+      }
+    }
+  }
 }
 
 /* merge aligned groups into the island's three tiers: 15-unit cubes (4x4x4 cells) where a full group fits, else 7.5-unit blocks
@@ -212,7 +207,7 @@ function emitPlatform() {
       const r = hash3(ci, cj, 0, 2);
       const ring = rr > 0.8;
       const flat = cj >= 0 && cj <= 6 && x > -30 && x < 150;                  // keeps its height: under the letter, the stairs and the doorstep
-      const under = cj >= 1 && cj <= 2 && x > 30 && x < 135 || cj >= 3 && cj <= 6 && x > 30 && x < 60;                       // hidden under the letter: no checker
+      const under = cj >= 1 && cj <= 2 && x > 30 && x < 135 || cj === 3 && x > 30 && x < 75;                       // hidden under the letter: no checker
       let top = 0;
       if (ring && !flat) top = r < 0.28 ? -CELL / 2 : r > 0.72 ? CELL / 2 : 0;  // uneven rim: cubes stand at three heights
       const D = bowlDepth(x, y) * (0.96 + 0.08 * hash3(ci, cj, 1, 4));
@@ -341,6 +336,7 @@ function material(token, n) {
 /* ---------- build ---------- */
 buildLetter();
 emitLetter();
+emitStairs();
 emitPlatform();
 emitLoose();
 
@@ -461,8 +457,8 @@ for (const [, list] of groups) {
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.4, bevelEnabled: false }), red, -1.4, 8.9, -0.4, 0, 0.35, -0.05);
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.3, bevelEnabled: false }), redDark, -1.2, 8.3, -1.2, 0, 0.55, 0.08).scale.set(0.75, 0.7, 1);
   g.scale.setScalar(1.3);
-  g.rotation.y = -0.55;                                                   // turned toward the viewer, looking down the stairs
-  g.position.set(45, LANDING_Z, 52.5);
+  g.rotation.y = 0.1;                                                     // facing right, down the flight toward the gate
+  g.position.set(22.5, LANDING_Z, 47);
   scene.add(g);
 })();
 
@@ -490,9 +486,9 @@ const doorMouth = new THREE.PointLight(0xff3018, 700, 30, 2);          // short 
 doorMouth.position.set(DOOR.cx + 4, 8, 50);
 scene.add(doorInner, doorMouth);
 
-const stairLight = new THREE.PointLight(0xff2a1c, 380, 75, 2);       // straight above the stairs: the treads glow, the risers stay dark
-stairLight.position.set(45, 110, 80);
-// (no extra stair light: the key lights the treads, the risers stay dark stone)
+const stairLight = new THREE.PointLight(0xff2a1c, 900, 42, 2);       // straight above the stairs: the treads glow, the risers stay dark
+stairLight.position.set(52, 72, 56);
+// (no separate stair light: it spotted the stem red; the key lights the treads)
 
 const edgeLight = (X, Y, Z, intensity, dist) => {
   const l = new THREE.PointLight(0xff2418, intensity, dist, 2);
