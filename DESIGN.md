@@ -2,7 +2,7 @@
 
 Design foundation · 15 October 2026 · Version 0.1
 
-This document captures the direction developed through concept exploration. It is the starting point for design iteration, then website implementation, then animation and mascot development. This repository currently contains documentation and reference images only.
+This document captures the direction developed through concept exploration. It is the starting point for design iteration, then website implementation, then animation and mascot development. This repository contains the design documentation, reference images and the first implementation of the Home page (`index.html`). Studio, Contact and Games are not built yet.
 
 **The idea:** a restrained, confident studio website with a small, distinctive world inside it. Large ivory typography, charcoal surfaces, selective red, and finely built voxel artwork give Blitzedo its identity. Each game keeps its own visual personality.
 
