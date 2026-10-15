@@ -47,7 +47,10 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/ja
   console.log('scene', JSON.stringify(await page.evaluate('window.__sculptureStats')));
   const frames = await page.evaluate('window.__explorerFrames');
   if (frames) {
-    fs.writeFileSync(path.join(__dirname, '..', 'assets', 'sculpture.json'), JSON.stringify({ explorer: frames }, null, 2) + '\n');
+    const island = await page.evaluate('window.__island');
+    fs.writeFileSync(path.join(__dirname, '..', 'assets', 'sculpture.json'), JSON.stringify({ explorer: frames, island }) + '\n');
+    fs.writeFileSync(path.join(__dirname, '..', 'assets', 'island.bin'), Buffer.from(await page.evaluate('window.__islandBin'), 'base64'));
+    console.log('island', island.count, 'faces');
     const sheet = await page.evaluate("window.__explorerSheet.toDataURL('image/png')");
     fs.writeFileSync(path.join(__dirname, '..', 'assets', 'explorer.png'), Buffer.from(sheet.split(',')[1], 'base64'));
     console.log('explorer', JSON.stringify(frames));

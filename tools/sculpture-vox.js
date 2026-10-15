@@ -286,13 +286,16 @@ function silhouette(i, j, k, a, b, c, d) {
 const FACE_DIRS = [[0, 0, 1], [0, 1, 0], [1, 0, 0]];          // top (+Z), front (+Y), right (+X)
 const IN_PLANE = [[[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0]], [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]], [[0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]];
 
+let FLAG = 0;                                     // set by faceColour: 1 = red light, 2 = gate glow (for the live page's effects)
 function faceColour(i, j, k, f) {
+  FLAG = 0;
   const kd = kind[idx(i, j, k)], b = bid[idx(i, j, k)], blk = blocks[b];
   const [di, dj, dk] = FACE_DIRS[f];
   const into = K(i + di, j + dj, k + dk);
 
   // the gate: faces looking into its recess glow
   if (into === KIND.DOOR) {
+    FLAG = 2;
     const n = hash3(i, j, k, 60 + f);
     if (f === 1) {                                            // back wall: flat coral, faint pixel grain, a little brighter low down
       const low = Math.max(0, 1 - (cz(k) / 50));
@@ -371,9 +374,9 @@ function faceColour(i, j, k, f) {
   }
 
   if (red && f === 0 && Math.abs(cz(k) + V / 2 - EXPLORER_AT[2]) < 0.1 && (cx(i) - EXPLORER_AT[0] - 0.6) ** 2 / 16 + (cy(j) - EXPLORER_AT[1]) ** 2 / 9 < 1) {
-    const c = redColour(i, j, k, f); return [c[0] * 0.55, c[1] * 0.5, c[2] * 0.5];   // the explorer's soft shadow under his boots
+    FLAG = 1; const c = redColour(i, j, k, f); return [c[0] * 0.55, c[1] * 0.5, c[2] * 0.5];   // the explorer's soft shadow under his boots
   }
-  if (red) return redColour(i, j, k, f);
+  if (red) { FLAG = 1; return redColour(i, j, k, f); }
 
   let v = stoneValue(i, j, k, f, b);
   v *= f === 0 ? STONE_FACE.top : f === 1 ? STONE_FACE.front : STONE_FACE.right;
@@ -406,12 +409,47 @@ function pushQuad(c, corners) {
   }
 }
 let faces = 0;
+const REC = [];                                   // face records for the live page: i, j, k, face, flag, r, g, b, block
+function face(i, j, k, f, corners) {
+  const c = faceColour(i, j, k, f);
+  pushQuad(c, corners); faces++;
+  REC.push([i, j, k, f, FLAG, ...c.map((v) => Math.round(Math.min(1, Math.max(0, v)) * 255)), bid[idx(i, j, k)]]);
+}
 for (let i = 0; i < NX; i++) for (let j = 0; j < NY; j++) for (let k = 0; k < NZ; k++) {
   if (!solid(i, j, k)) continue;
   const x = GX0 + i * V, y = GY0 + j * V, z = GZ0 + k * V;
-  if (!solid(i, j, k + 1)) { pushQuad(faceColour(i, j, k, 0), [[x, y, z + V], [x + V, y, z + V], [x + V, y + V, z + V], [x, y + V, z + V]]); faces++; }
-  if (!solid(i, j + 1, k)) { pushQuad(faceColour(i, j, k, 1), [[x, y + V, z], [x + V, y + V, z], [x + V, y + V, z + V], [x, y + V, z + V]]); faces++; }
-  if (!solid(i + 1, j, k)) { pushQuad(faceColour(i, j, k, 2), [[x + V, y, z], [x + V, y + V, z], [x + V, y + V, z + V], [x + V, y, z + V]]); faces++; }
+  if (!solid(i, j, k + 1)) face(i, j, k, 0, [[x, y, z + V], [x + V, y, z + V], [x + V, y + V, z + V], [x, y + V, z + V]]);
+  if (!solid(i, j + 1, k)) face(i, j, k, 1, [[x, y + V, z], [x + V, y + V, z], [x + V, y + V, z + V], [x, y + V, z + V]]);
+  if (!solid(i + 1, j, k)) face(i, j, k, 2, [[x + V, y, z], [x + V, y + V, z], [x + V, y + V, z + V], [x + V, y, z + V]]);
+}
+// Path distance from the gate for the live page's light pulse: Dijkstra over the surface voxels (26 neighbours), cheap through
+// voxels that carry red light and dear through plain stone, so the pulse runs along the treads and the red outlines like a fuse.
+const PATH = new Float32Array(NX * NY * NZ).fill(Infinity);
+{
+  const lit = new Uint8Array(NX * NY * NZ);      // 1 = surface voxel, 2 = surface voxel with red light: only the surface is walked
+  REC.forEach((r) => { const n = idx(r[0], r[1], r[2]); lit[n] = Math.max(lit[n], r[4] ? 2 : 1); });
+  const heap = [];                                // binary heap of [dist, cell]
+  const push = (d, n) => { heap.push([d, n]); let q = heap.length - 1; while (q > 0) { const p = (q - 1) >> 1; if (heap[p][0] <= heap[q][0]) break; [heap[p], heap[q]] = [heap[q], heap[p]]; q = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let q = 0; for (;;) { const l = 2 * q + 1, r = l + 1; let m = q; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === q) break; [heap[m], heap[q]] = [heap[q], heap[m]]; q = m; } } return top; };
+  for (let i = 0; i < NX; i++) for (let j = 0; j < NY; j++) for (let k = 0; k < NZ; k++) {
+    const n = idx(i, j, k);
+    if (lit[n] && kind[n] === KIND.THRESH && cx(i) > DOOR.x0 && cx(i) < DOOR.x1 && cy(j) < 50) { PATH[n] = 0; push(0, n); }   // the gate's step
+  }
+  const NB = [];
+  for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) if (a || b || c) NB.push([a, b, c, Math.hypot(a, b, c)]);
+  while (heap.length) {
+    const [d, n] = pop();
+    if (d > PATH[n]) continue;
+    const k = n % NZ, j = ((n - k) / NZ) % NY, i = (n - k - j * NZ) / (NY * NZ);
+    for (const [a, b, c, len] of NB) {
+      const i2 = i + a, j2 = j + b, k2 = k + c;
+      if (!inb(i2, j2, k2)) continue;
+      const m = idx(i2, j2, k2);
+      if (!lit[m]) continue;
+      const nd = d + len * (lit[m] === 2 ? 1 : 6);
+      if (nd < PATH[m]) { PATH[m] = nd; push(nd, m); }
+    }
+  }
 }
 const geo = new THREE.BufferGeometry();
 geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -557,4 +595,29 @@ window.__sculptureCanvas = out;
 window.__sculptureStats = { faces, blocks: blocks.length };
 { const p = window.__project(EXPLORER_AT[0], EXPLORER_AT[1], EXPLORER_AT[2]), q = window.__project(EXPLORER_AT[0], EXPLORER_AT[1], EXPLORER_AT[2] + 15);
   window.__anchor = { x: p[0] / W, y: p[1] / H, block: (p[1] - q[1]) / H }; }   // feet position and one big block's height, as fractions of the image
+{
+  // the live island: one 12-byte record per face (i, j, k, face | flag << 2, r, g, b, pad, block u16, path u16), plus the camera
+  let maxPath = 0;
+  REC.forEach((r) => { const d = PATH[idx(r[0], r[1], r[2])]; if (r[4] && isFinite(d)) maxPath = Math.max(maxPath, d); });
+  const buf = new ArrayBuffer(REC.length * 12), dv = new DataView(buf);
+  REC.forEach((r, n) => {
+    const o = n * 12, d = PATH[idx(r[0], r[1], r[2])];
+    dv.setUint8(o, r[0]); dv.setUint8(o + 1, r[1]); dv.setUint8(o + 2, r[2]); dv.setUint8(o + 3, r[3] | (r[4] << 2));
+    dv.setUint8(o + 4, r[5]); dv.setUint8(o + 5, r[6]); dv.setUint8(o + 6, r[7]);
+    dv.setUint16(o + 8, r[8], true);
+    dv.setUint16(o + 10, isFinite(d) && d <= maxPath ? Math.round(d / maxPath * 65534) : 65535, true);
+  });
+  let bin = ''; const u8 = new Uint8Array(buf);
+  for (let n = 0; n < u8.length; n += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(n, n + 0x8000));
+  window.__islandBin = btoa(bin);
+  const gq = [[DOOR.x0, 45, 0], [DOOR.x1, 45, 0], [DOOR.x0, 45, DOOR.zRect + DOOR.r], [DOOR.x1, 45, DOOR.zRect + DOOR.r]].map((p) => window.__project(...p));
+  window.__island = {
+    grid: [GX0, GY0, GZ0, V], count: REC.length, maxPath,
+    view: camera.matrixWorldInverse.elements.map((v) => +v.toFixed(6)),
+    bounds: [camera.left, camera.right, camera.top, camera.bottom, camera.near, camera.far].map((v) => +v.toFixed(4)),
+    explorerBlock: bid[idx(vi(EXPLORER_AT[0]), vj(EXPLORER_AT[1]), vk(EXPLORER_AT[2] - V))],
+    gate: { x: Math.min(...gq.map((p) => p[0])) / W, y: Math.min(...gq.map((p) => p[1])) / H, w: (Math.max(...gq.map((p) => p[0])) - Math.min(...gq.map((p) => p[0]))) / W, h: (Math.max(...gq.map((p) => p[1])) - Math.min(...gq.map((p) => p[1]))) / H },
+    door: [DOOR.x0, DOOR.x1, DOOR.recessY, 45, DOOR.zRect + DOOR.r]
+  };
+}
 window.__sculptureReady = true;
