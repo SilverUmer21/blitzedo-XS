@@ -49,8 +49,8 @@ const STEM = { x0: 24, x1: 51, h: 126 };
 const BOWL = { x0: 42, x1: 114, h: 72, rTop: 42, rBot: 30 };
 const LANDING_Z = 54;
 const CELL = 15;                                   // foundation top cube; tiers below are CELL/2 and CELL/4
-const PLAT = { x0: -15, x1: 135, y0: -27, y1: 48 };   // cell boundaries line up with the letter (x) and the stairs' front edge (y = 33)
-const PLAT_CX = 60, PLAT_CY = 10.5, PLAT_AX = 75, PLAT_AY = 37.5;
+const PLAT = { x0: -15, x1: 135, y0: -27, y1: 63 };   // cell boundaries line up with the letter (x) and the stairs' front edge (y = 33)
+const PLAT_CX = 60, PLAT_CY = 18, PLAT_AX = 75, PLAT_AY = 45;
 const inCircle = (x, z, cx, cz, r) => (x - cx) ** 2 + (z - cz) ** 2 <= r * r;
 function inLetter(X, Z) {
   if (X >= STEM.x0 && X < STEM.x1 && Z >= 0 && Z < STEM.h) return true;
@@ -169,8 +169,8 @@ function emitLetter() {
  *       7.5- and 3.75-unit cubes step down along a smooth bowl profile ----- */
 function bowlDepth(x, y) {
   const u = (x - PLAT_CX) / PLAT_AX, v = (y - PLAT_CY) / PLAT_AY;
-  const r = Math.min(1, Math.pow(u ** 4 + v ** 4, 0.25));          // rounded-rectangle distance from the centre
-  return 17 + 52 * Math.pow(1 - r * r, 0.85);                         // rim ~17 deep, centre ~70: a bowl
+  const r = Math.min(1, Math.pow(u ** 4 + v ** 4, 0.25));          // rounded-square distance from the centre (0 centre, 1 rim)
+  return 15 + 108 * Math.pow(1 - r, 1.0);                            // rim ~15 deep, centre ~115: an inverted cone, stepped by the cube tiers
 }
 const tierFaces = (h) => {
   const f = baseFaces();
@@ -178,7 +178,7 @@ const tierFaces = (h) => {
   return f;
 };
 const shadeDepth = (Z) => 1 - 0.35 * Math.min(1, Math.max(0, -Z / 70));
-const darkCube = (a, b, c) => hash3(a, b, c, 302) < 0.34;                  // some cubes are near-black stone, so tops alternate red / black
+const darkCube = (a, b, c) => hash3(a, b, c, 302) < 0.4;                  // some cubes are near-black stone, so tops alternate red / black
 const tintOf = (a, b, c, Z) => (darkCube(a, b, c) ? 0.03 : 0.45 + 0.8 * hash3(a, b, c, 301)) * shadeDepth(Z);
 function emitPlatform() {
   const ci0 = Math.round(PLAT.x0 / CELL), ci1 = Math.round(PLAT.x1 / CELL) - 1;
@@ -190,8 +190,8 @@ function emitPlatform() {
       const border = ci === ci0 || ci === ci1 || cj === cj0 || cj === cj1;
       const flat = y > 0 && y < 33 && x > -10 && x < 125;                    // under the letter, the stairs and the doorstep
       let top = 0;
-      if (border && !flat) top = r < 0.2 ? -CELL / 2 : r > 0.8 ? CELL / 2 : 0; // a few rim cubes stand higher or lower
-      const jit = 0.86 + 0.28 * hash3(ci, cj, 1, 4);
+      if (border && !flat) top = r < 0.1 ? -CELL / 2 : r > 0.9 ? CELL / 2 : 0;  // a couple of rim cubes stand higher or lower
+      const jit = 0.94 + 0.12 * hash3(ci, cj, 1, 4);
       const D = bowlDepth(x, y) * jit;
       const n1 = 1 + Math.floor(Math.max(0, D - CELL) / 38);
       // tier 1: 15-cubes
@@ -199,15 +199,16 @@ function emitPlatform() {
         const Z = top - CELL / 2 - q * CELL;
         const f = tierFaces(ci * 31 + cj * 7 + q);
         if (q === 0 && x > DOOR.x0 && x < DOOR.x1 && y > 0 && y < 30) f[2] = 'd0';   // door floor glows
-        blocks.push({ X: x, Y: y, Z, s: CELL, f, t: tintOf(ci, cj, q, Z) });
+        const checkerDark = q === 0 && !flat && ((ci + cj) & 1) === (hash3(ci, cj, 5, 7) < 0.25 ? 1 : 0);   // top layer: mostly alternating red-lit / near-black cubes, with a few swapped
+        blocks.push({ X: x, Y: y, Z, s: CELL, f, t: checkerDark ? 0.04 : q === 0 && !flat ? 0.75 + 0.45 * hash3(ci, cj, q, 301) : tintOf(ci, cj, q, Z) });
       }
       const z1 = top - n1 * CELL;
       // tier 2: 7.5-cubes in a 2x2 pattern, depth read from the bowl profile at each sub-column
       const h2 = CELL / 2, q4 = CELL / 4;
       for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
         const xs = x - q4 + a * h2, ys = y - q4 + b * h2, hh = ci * 977 + cj * 131 + a * 17 + b * 5;
-        const D2 = bowlDepth(xs, ys) * (0.72 + 0.5 * hash3(hh, 0, 0, 240)) - n1 * CELL;
-        const len2 = Math.max(0, Math.round(0.62 * D2 / h2));
+        const D2 = bowlDepth(xs, ys) * (0.9 + 0.2 * hash3(hh, 0, 0, 240)) - n1 * CELL;
+        const len2 = Math.max(0, Math.round(0.7 * D2 / h2));
         for (let q = 0; q < len2; q++) {
           const Z = z1 - h2 / 2 - q * h2;
           blocks.push({ X: xs, Y: ys, Z, s: h2, f: tierFaces(hh * 7 + q), t: tintOf(hh, q, 2, Z) });
@@ -216,8 +217,8 @@ function emitPlatform() {
         const z2 = z1 - len2 * h2;
         for (let c = 0; c < 2; c++) for (let d = 0; d < 2; d++) {
           const xt = xs - q4 / 2 + c * q4, yt = ys - q4 / 2 + d * q4, h3 = hh * 13 + c * 3 + d;
-          const D3 = bowlDepth(xt, yt) * (0.62 + 0.8 * hash3(h3, 0, 0, 241)) - n1 * CELL - len2 * h2;
-          const len3 = Math.min(5, Math.max(0, Math.round(1.0 * D3 / q4)));
+          const D3 = bowlDepth(xt, yt) * (0.8 + 0.4 * hash3(h3, 0, 0, 241)) - n1 * CELL - len2 * h2;
+          const len3 = Math.min(6, Math.max(0, Math.round(1.0 * D3 / q4)));
           for (let q = 0; q < len3; q++) {
             const Z = z2 - q4 / 2 - q * q4;
             blocks.push({ X: xt, Y: yt, Z, s: q4, f: tierFaces(h3 * 5 + q), t: tintOf(h3, q, 3, Z) });
@@ -447,9 +448,8 @@ const bbox = new THREE.Box3();
 blocks.forEach((b) => bbox.expandByPoint(new THREE.Vector3(b.X, b.Z, b.Y)));
 const centre = bbox.getCenter(new THREE.Vector3());
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 2000);
-// The reference is a low, front-leaning view (not true isometric): about 17.5 deg elevation, 36 deg azimuth.
-// That makes the front face large and the tops thin slivers.
-const AZ = 36 * Math.PI / 180, EL = 17.5 * Math.PI / 180;
+// Near-isometric view (45 deg azimuth, 33 deg elevation): the island reads as a diamond with its corner toward the viewer.
+const AZ = 45 * Math.PI / 180, EL = 33 * Math.PI / 180;
 camera.position.copy(centre).add(new THREE.Vector3(Math.sin(AZ) * Math.cos(EL), Math.sin(EL), Math.cos(AZ) * Math.cos(EL)).multiplyScalar(700));
 camera.lookAt(centre);
 camera.updateMatrixWorld(true);

@@ -37,5 +37,6 @@ Use [DESIGN.md](../DESIGN.md) as the current source of design decisions. Add rev
 | 2026-10-15 | Sculpture blocks are all charcoal stone; red comes from light, not red blocks. Larger cubes (9-unit letter, 12-unit foundation) with chunky chipped-stone textures. | Implemented, awaiting user review |
 | 2026-10-15 | Foundation remade as a bowl: regular grid of 15-unit rim cubes (some near-black so tops alternate red / black), 7.5 and 3.75-unit tiers stepping down a smooth bowl profile; chibi explorer; calmer glow. | Implemented, awaiting user review |
 | 2026-10-15 | b silhouette reworked (taller stem, rounder bowl, low front-leaning camera like the reference, steps flush with the wall, red edge light strips); primary button `#C4161B`; type switched to self-hosted Inter Tight. | Implemented, awaiting user review |
+| 2026-10-15 | Camera returned to a near-isometric view (45 deg / 33 deg) so the island reads as a diamond; island reshaped as a square diamond with an inverted-cone underside and alternating red-lit / near-black top cubes. Supersedes the low front-leaning camera. | Implemented, awaiting user review |
 
 For each later review, record the exact file, decision, and approval status. Do not mark proposals approved without a user decision.
