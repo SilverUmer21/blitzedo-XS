@@ -8,152 +8,209 @@
   <meta name="theme-color" content="#090A08">
   <link rel="stylesheet" href="css/styles.css">
   <style>
-    /* Five takes on the primary action, all in the same crimson. Not linked from the site. */
+    /* Takes on the primary action, all in the brand crimson. Not linked from the site.
+       Hover (desktop) or tap (phone) plays each one: .is-on is set by the script below. */
     .demos { max-width: 1100px; margin: 0 auto; padding: 28px var(--gutter) 64px; display: grid; gap: 18px; }
-    .demos__intro { color: var(--ivory-muted); font-size: 17px; margin: 0 0 6px; max-width: 46ch; }
-    .demo { position: relative; display: grid; gap: 18px; padding: 26px 22px 30px; background: #0E0F0D; border: 1px solid var(--rule); }
+    .demos__intro { color: var(--ivory-muted); font-size: 17px; margin: 0 0 6px; max-width: 48ch; }
+    .demo { position: relative; display: grid; gap: 18px; padding: 26px 22px 30px; background: #0E0F0D; border: 1px solid var(--rule); min-width: 0; }
     .demo__head { display: flex; align-items: baseline; gap: 12px; }
     .demo__tag { font-weight: 700; font-size: 15px; color: var(--red-hover); letter-spacing: 0.04em; }
     .demo__name { font-weight: 700; font-size: 22px; letter-spacing: -0.02em; }
     .demo__note { margin: 0; color: var(--ivory-muted); font-size: 15px; line-height: 1.45; max-width: 52ch; }
-    .demo__stage { display: flex; align-items: center; min-height: 92px; }
+    .demo__stage { display: flex; align-items: flex-end; min-height: 110px; padding-top: 18px; }
     @media (min-width: 900px) { .demos { grid-template-columns: 1fr 1fr; } .demos__intro { grid-column: 1 / -1; } }
 
-    .px-arrow { display: block; width: 28px; height: 20px; flex: none; shape-rendering: crispEdges; }
+    .x { position: relative; display: inline-flex; align-items: center; gap: 16px; color: var(--ivory);
+         font-size: 30px; font-weight: 700; letter-spacing: -0.035em; line-height: 1; -webkit-tap-highlight-color: transparent; }
+    .px-arrow { display: block; width: 26px; height: 26px; flex: none; shape-rendering: crispEdges; }
 
-    /* A. Slim pixel: sized to its label, corners cut in pixel steps, the arrow hops forward in steps */
-    .b-a {
-      display: inline-flex; align-items: center; gap: 18px;
-      padding: 16px 22px 16px 24px;
-      background: var(--red); color: var(--ivory);
-      font-size: 20px; font-weight: 500; letter-spacing: -0.01em;
-      clip-path: polygon(0 6px, 3px 6px, 3px 3px, 6px 3px, 6px 0, calc(100% - 6px) 0, calc(100% - 6px) 3px, calc(100% - 3px) 3px,
-        calc(100% - 3px) 6px, 100% 6px, 100% calc(100% - 6px), calc(100% - 3px) calc(100% - 6px), calc(100% - 3px) calc(100% - 3px),
-        calc(100% - 6px) calc(100% - 3px), calc(100% - 6px) 100%, 6px 100%, 6px calc(100% - 3px), 3px calc(100% - 3px), 3px calc(100% - 6px), 0 calc(100% - 6px));
-      transition: background 0.2s;
-    }
-    .b-a:hover, .b-a:focus-visible { background: var(--red-hover); }
-    .b-a:active { background: var(--red-press); }
-    .b-a:hover .px-arrow, .b-a:focus-visible .px-arrow { animation: hop 0.6s steps(3, end) infinite; }
-    @keyframes hop { from { transform: none; } to { transform: translateX(9px); } }
+    /* D. Underline (the one you liked): a thick crimson bar that climbs up behind the words */
+    .d { padding: 10px 4px 14px; background: linear-gradient(var(--red), var(--red)) bottom / 100% 6px no-repeat;
+         transition: background-size 0.3s steps(5, end), padding 0.3s steps(5, end); }
+    .d:hover, .d.is-on { background-size: 100% 100%; padding-left: 14px; padding-right: 14px; }
 
-    /* B. Voxel key: a crimson block with its own depth; it sinks when pressed, like a key or a block being placed */
-    .b-b {
-      display: inline-flex; align-items: center; gap: 18px;
-      padding: 17px 24px;
-      background: var(--red); color: var(--ivory);
-      font-size: 20px; font-weight: 600; letter-spacing: -0.01em;
-      box-shadow: 6px 6px 0 #5E0909, 3px 3px 0 #7A0D0D;
-      transform: translate(-3px, -3px);
-      transition: transform 0.08s steps(2, end), box-shadow 0.08s steps(2, end), background 0.2s;
-    }
-    .b-b::before {                                  /* a lit top edge, like the sculpture's red tops */
-      content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: #E2342C;
-    }
-    .b-b { position: relative; }
-    .b-b:hover, .b-b:focus-visible { background: #B81515; }
-    .b-b:active { transform: none; box-shadow: 0 0 0 #5E0909; }
+    /* F. Fuse: the bar is a fuse; a hot spark crawls along it, and when it reaches the arrow the arrow fires */
+    .f { padding: 10px 4px 16px; }
+    .f::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--red); }
+    .f__spark { position: absolute; bottom: 0; left: 0; width: 6px; height: 6px; background: #FFE2C4;
+                box-shadow: 0 0 10px 3px rgba(255, 106, 71, 0.85); animation: fuse 3.4s steps(26, end) infinite; }
+    @keyframes fuse { 0% { left: 0; opacity: 1; } 62% { left: calc(100% - 6px); opacity: 1; } 63%, 100% { left: calc(100% - 6px); opacity: 0; } }
+    .f .px-arrow { animation: fire 3.4s steps(1, end) infinite; }
+    @keyframes fire { 0%, 62% { transform: none; color: var(--ivory); } 63% { transform: translateX(8px); color: #FF8A66; } 68% { transform: translateX(14px); color: #FFE2C4; } 74%, 100% { transform: none; color: var(--ivory); } }
+    .f:hover .f__spark, .f.is-on .f__spark, .f:hover .px-arrow, .f.is-on .px-arrow { animation-duration: 0.9s; }
 
-    /* C. Portal: a crimson pixel frame around a tiny glowing gate; on hover it fills from the bottom in steps and sparks rise */
-    .b-c {
-      position: relative; display: inline-flex; align-items: center; gap: 16px;
-      padding: 15px 22px 15px 18px;
-      color: var(--ivory); font-size: 20px; font-weight: 500; letter-spacing: -0.01em;
-      border: 3px solid var(--red);
-      background: linear-gradient(var(--red), var(--red)) bottom / 100% 0 no-repeat;
-      transition: background-size 0.36s steps(6, end);
-    }
-    .b-c:hover, .b-c:focus-visible { background-size: 100% 100%; }
-    .b-c .gate { position: relative; width: 16px; height: 22px; flex: none; background: #EB4033; box-shadow: 0 0 14px 2px rgba(255, 70, 50, 0.55);
-      clip-path: polygon(0 100%, 0 6px, 3px 6px, 3px 3px, 6px 3px, 6px 0, 10px 0, 10px 3px, 13px 3px, 13px 6px, 16px 6px, 16px 100%);
-      animation: breathe 3s ease-in-out infinite; }
-    @keyframes breathe { 50% { filter: brightness(1.18); } }
-    .b-c .spark { position: absolute; width: 3px; height: 3px; background: #FF7A52; opacity: 0; left: 26px; bottom: 50%; }
-    .b-c:hover .spark, .b-c:focus-visible .spark { animation: rise 1.1s steps(6, end) infinite; }
-    .b-c .spark:nth-of-type(2) { left: 22px; animation-delay: 0.35s !important; }
-    .b-c .spark:nth-of-type(3) { left: 30px; animation-delay: 0.7s !important; }
-    @keyframes rise { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-26px); } }
+    /* G. Crumble: the bar is a row of pixels; it crumbles away and rebuilds itself, block by block */
+    .g { padding: 10px 4px 16px; }
+    .g__bar { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; display: flex; }
+    .g__bar i { flex: 1; background: var(--red); }
+    .g:hover .g__bar i, .g.is-on .g__bar i { animation: crumble 1.5s steps(6, end) both; animation-delay: calc(var(--n) * 28ms); }
+    @keyframes crumble { 0% { transform: none; opacity: 1; } 30% { transform: translate(var(--dx), 22px); opacity: 0; }
+                          55% { transform: translate(0, -14px); opacity: 0; } 100% { transform: none; opacity: 1; } }
+    .g:hover .px-arrow, .g.is-on .px-arrow { animation: nudge 0.5s steps(3, end) 3; }
+    @keyframes nudge { 50% { transform: translateX(8px); } }
 
-    /* D. Underline: no box at all; a bold label on a thick crimson bar that climbs up behind it in steps */
-    .b-d {
-      position: relative; display: inline-flex; align-items: center; gap: 16px;
-      padding: 10px 4px 14px;
-      font-size: 30px; font-weight: 700; letter-spacing: -0.035em; color: var(--ivory);
-      background: linear-gradient(var(--red), var(--red)) bottom / 100% 6px no-repeat;
-      transition: background-size 0.3s steps(5, end), padding 0.3s steps(5, end);
-    }
-    .b-d:hover, .b-d:focus-visible { background-size: 100% 100%; padding-left: 14px; padding-right: 14px; }
-    .b-d .px-arrow { width: 32px; height: 23px; }
+    /* H. Gate: the bar rises into a stepped crimson archway behind the words, the island's doorway, and it glows */
+    .h { padding: 18px 26px 18px; }
+    .h::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--red); z-index: -1; }
+    .h__gate { position: absolute; inset: 0; z-index: -1; background: var(--red); transform-origin: bottom; transform: scaleY(0);
+               clip-path: polygon(0 100%, 0 30%, 4% 30%, 4% 18%, 9% 18%, 9% 9%, 16% 9%, 16% 3%, 26% 3%, 26% 0, 74% 0, 74% 3%, 84% 3%, 84% 9%,
+                 91% 9%, 91% 18%, 96% 18%, 96% 30%, 100% 30%, 100% 100%);
+               transition: transform 0.42s steps(7, end), background 0.3s; }
+    .h { isolation: isolate; }
+    .h:hover .h__gate, .h.is-on .h__gate { transform: none; background: #C4161B; filter: drop-shadow(0 0 14px rgba(255, 60, 40, 0.45)); }
+    .h:hover .px-arrow, .h.is-on .px-arrow { animation: nudge 0.6s steps(3, end) infinite; }
 
-    /* E. Explorer key: a crimson block with the explorer standing in it, joined to the label; he waves on hover or tap */
-    .b-e {
-      display: inline-flex; align-items: stretch;
-      color: var(--ivory); font-size: 20px; font-weight: 500; letter-spacing: -0.01em;
-      border: 1px solid rgba(174, 18, 18, 0.7); background: #120E0D;
-    }
-    .b-e__block { position: relative; width: 62px; background: var(--red); overflow: hidden; }
-    .b-e__block i {
-      position: absolute; left: 50%; bottom: 2px; width: 46px; transform: translateX(-50%);
-      aspect-ratio: 322 / 388;
-      background: url("assets/explorer.png") 0 0 / 1400% 100% no-repeat; image-rendering: pixelated;
-    }
-    .b-e:hover .b-e__block i, .b-e:focus-visible .b-e__block i, .b-e.is-waving .b-e__block i { animation: wave 0.56s steps(4) infinite; }
-    @keyframes wave { from { background-position-x: 61.538%; } to { background-position-x: 92.308%; } }
-    .b-e__label { display: flex; align-items: center; gap: 16px; padding: 18px 22px; }
-    .b-e:hover .px-arrow { animation: hop 0.6s steps(3, end) infinite; }
+    /* I. Stairs: the bar becomes a pixel staircase; the explorer climbs it to the arrow */
+    .i { padding: 10px 4px 34px; }
+    .i__step { position: absolute; bottom: 0; height: 6px; background: var(--red); }
+    .i__guy { position: absolute; width: 26px; aspect-ratio: 322 / 388; left: -4px; bottom: 6px;
+              background: url("assets/explorer.png") 0 0 / 1400% 100% no-repeat; image-rendering: pixelated;
+              animation: idle 1.1s steps(8) infinite; }
+    @keyframes idle { from { background-position-x: 0; } to { background-position-x: 61.538%; } }
+    .i:hover .i__guy, .i.is-on .i__guy { animation: idle 1.1s steps(8) infinite, climb 1.6s steps(6, end) forwards; }
+    @keyframes climb { to { transform: translate(var(--run), var(--rise)); } }
+    .i:hover .px-arrow, .i.is-on .px-arrow { animation: lit 1.6s steps(1, end) forwards; }
+    @keyframes lit { 0%, 90% { color: var(--ivory); } 100% { color: #FF8A66; transform: translateX(6px); } }
+
+    /* J. Blit: the words break into chunky pixels and resolve back, like the wordmark's "blit" */
+    .j { padding: 10px 4px 16px; background: linear-gradient(var(--red), var(--red)) bottom / 100% 6px no-repeat; }
+    .j__label { position: relative; }
+    .j__label canvas { position: absolute; left: 0; top: 50%; transform: translateY(-50%); image-rendering: pixelated; pointer-events: none; opacity: 0; }
+    .j.is-blitting .j__text { opacity: 0; }
+    .j.is-blitting canvas { opacity: 1; }
+
+    /* K. Voxel type: the words are built like the sculpture, an ivory face on a crimson block body; they rise toward you */
+    .k { padding: 8px 14px 8px 0; font-size: 36px; letter-spacing: -0.04em;
+         text-shadow: 1px 1px 0 #C4161B, 2px 2px 0 #AE1212, 3px 3px 0 #9A1010, 4px 4px 0 #860E0E, 5px 5px 0 #720C0C, 6px 6px 0 #5E0909;
+         transition: transform 0.18s steps(3, end), text-shadow 0.18s steps(3, end); }
+    .k .px-arrow { filter: drop-shadow(1px 1px 0 #C4161B) drop-shadow(2px 2px 0 #9A1010) drop-shadow(3px 3px 0 #5E0909); }
+    .k:hover, .k.is-on { transform: translate(-3px, -3px);
+         text-shadow: 1px 1px 0 #C4161B, 2px 2px 0 #B81515, 3px 3px 0 #AE1212, 4px 4px 0 #A41212, 5px 5px 0 #9A1010, 6px 6px 0 #900F0F,
+                      7px 7px 0 #860E0E, 8px 8px 0 #7C0D0D, 9px 9px 0 #720C0C, 10px 10px 0 #5E0909; }
+    .k:active { transform: translate(3px, 3px); text-shadow: 1px 1px 0 #C4161B, 2px 2px 0 #5E0909; }
   </style>
 </head>
 <body>
   <main class="demos">
-    <p class="demos__intro">Five takes on <strong>Explore games</strong>, all in the same crimson. Tap or hover each one: they all react. Pick a letter.</p>
+    <p class="demos__intro">More takes on <strong>Explore games</strong>, starting from the Underline you liked. Each one plays a little on its own; tap it (or hover on a computer) to see the full move.</p>
 
     <section class="demo">
-      <div class="demo__head"><span class="demo__tag">A</span><span class="demo__name">Slim pixel</span></div>
-      <div class="demo__stage">
-        <a class="b-a" href="#">Explore games <svg class="px-arrow" viewBox="0 0 7 5" aria-hidden="true"><path fill="currentColor" d="M4 0h1v1H4zM4 1h2v1H4zM0 2h7v1H0zM4 3h2v1H4zM4 4h1v1H4z"/></svg></a>
-      </div>
-      <p class="demo__note">Only as wide as its words, so the island gets the screen. Corners cut in pixel steps; the pixel arrow hops forward on hover.</p>
+      <div class="demo__head"><span class="demo__tag">D</span><span class="demo__name">Underline (your pick)</span></div>
+      <div class="demo__stage"><a class="x d" href="#">Explore games <svg class="px-arrow" viewBox="0 0 7 7" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1H3zM4 1h1v1H4zM5 2h1v1H5zM0 3h7v1H0zM5 4h1v1H5zM4 5h1v1H4zM3 6h1v1H3z"/></svg></a></div>
+      <p class="demo__note">The baseline: bold words on a thick crimson bar that climbs up behind them.</p>
     </section>
 
     <section class="demo">
-      <div class="demo__head"><span class="demo__tag">B</span><span class="demo__name">Voxel key</span></div>
-      <div class="demo__stage">
-        <a class="b-b" href="#">Explore games <svg class="px-arrow" viewBox="0 0 7 5" aria-hidden="true"><path fill="currentColor" d="M4 0h1v1H4zM4 1h2v1H4zM0 2h7v1H0zM4 3h2v1H4zM4 4h1v1H4z"/></svg></a>
-      </div>
-      <p class="demo__note">A crimson block with real depth and a lit top edge, like the sculpture's blocks. Press it and it sinks into place.</p>
+      <div class="demo__head"><span class="demo__tag">F</span><span class="demo__name">Fuse</span></div>
+      <div class="demo__stage"><a class="x f" href="#">Explore games <svg class="px-arrow" viewBox="0 0 7 7" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1H3zM4 1h1v1H4zM5 2h1v1H5zM0 3h7v1H0zM5 4h1v1H5zM4 5h1v1H4zM3 6h1v1H3z"/></svg><span class="f__spark" aria-hidden="true"></span></a></div>
+      <p class="demo__note">The underline is a fuse. A white-hot spark crawls along it, like the light pulse on the island, and when it reaches the arrow the arrow fires. Tap and it burns fast.</p>
     </section>
 
     <section class="demo">
-      <div class="demo__head"><span class="demo__tag">C</span><span class="demo__name">Portal</span></div>
-      <div class="demo__stage">
-        <a class="b-c" href="#"><span class="gate" aria-hidden="true"></span><span class="spark" aria-hidden="true"></span><span class="spark" aria-hidden="true"></span><span class="spark" aria-hidden="true"></span>Explore games</a>
-      </div>
-      <p class="demo__note">A crimson frame with a tiny breathing gate inside, the island's doorway in miniature. Hover fills it from the bottom in steps and sparks rise.</p>
+      <div class="demo__head"><span class="demo__tag">G</span><span class="demo__name">Crumble</span></div>
+      <div class="demo__stage"><a class="x g" href="#">Explore games <svg class="px-arrow" viewBox="0 0 7 7" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1H3zM4 1h1v1H4zM5 2h1v1H5zM0 3h7v1H0zM5 4h1v1H5zM4 5h1v1H4zM3 6h1v1H3z"/></svg><span class="g__bar" aria-hidden="true"></span></a></div>
+      <p class="demo__note">The underline is a row of pixel blocks. Tap and it crumbles away block by block, then rebuilds itself, the island's crumble in miniature.</p>
     </section>
 
     <section class="demo">
-      <div class="demo__head"><span class="demo__tag">D</span><span class="demo__name">Underline</span></div>
-      <div class="demo__stage">
-        <a class="b-d" href="#">Explore games <svg class="px-arrow" viewBox="0 0 7 5" aria-hidden="true"><path fill="currentColor" d="M4 0h1v1H4zM4 1h2v1H4zM0 2h7v1H0zM4 3h2v1H4zM4 4h1v1H4z"/></svg></a>
-      </div>
-      <p class="demo__note">No box. Big bold words on a thick crimson bar, the quietest option. On hover the bar climbs up behind the words.</p>
+      <div class="demo__head"><span class="demo__tag">H</span><span class="demo__name">Gate</span></div>
+      <div class="demo__stage"><a class="x h" href="#"><span class="h__gate" aria-hidden="true"></span>Explore games <svg class="px-arrow" viewBox="0 0 7 7" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1H3zM4 1h1v1H4zM5 2h1v1H5zM0 3h7v1H0zM5 4h1v1H5zM4 5h1v1H4zM3 6h1v1H3z"/></svg></a></div>
+      <p class="demo__note">At rest it is a crimson bar. Tap and the bar rises in steps into a pixel archway behind the words, the island's glowing doorway: you are about to walk through it.</p>
     </section>
 
     <section class="demo">
-      <div class="demo__head"><span class="demo__tag">E</span><span class="demo__name">Explorer key</span></div>
-      <div class="demo__stage">
-        <a class="b-e" href="#"><span class="b-e__block" aria-hidden="true"><i></i></span><span class="b-e__label">Explore games <svg class="px-arrow" viewBox="0 0 7 5" aria-hidden="true"><path fill="currentColor" d="M4 0h1v1H4zM4 1h2v1H4zM0 2h7v1H0zM4 3h2v1H4zM4 4h1v1H4z"/></svg></span></a>
-      </div>
-      <p class="demo__note">A small crimson block with the explorer in it, joined to a dark label. He waves when you hover or tap, so the button is part of the world.</p>
+      <div class="demo__head"><span class="demo__tag">I</span><span class="demo__name">Stairs</span></div>
+      <div class="demo__stage"><a class="x i" href="#">Explore games <svg class="px-arrow" viewBox="0 0 7 7" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1H3zM4 1h1v1H4zM5 2h1v1H5zM0 3h7v1H0zM5 4h1v1H5zM4 5h1v1H4zM3 6h1v1H3z"/></svg><span class="i__stairs" aria-hidden="true"></span><span class="i__guy" aria-hidden="true"></span></a></div>
+      <p class="demo__note">The underline is a little pixel staircase. The explorer waits at the bottom; tap and he climbs it step by step to the arrow, which lights up when he arrives.</p>
+    </section>
+
+    <section class="demo">
+      <div class="demo__head"><span class="demo__tag">J</span><span class="demo__name">Blit</span></div>
+      <div class="demo__stage"><a class="x j" href="#"><span class="j__label"><span class="j__text">Explore games</span></span> <svg class="px-arrow" viewBox="0 0 7 7" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1H3zM4 1h1v1H4zM5 2h1v1H5zM0 3h7v1H0zM5 4h1v1H5zM4 5h1v1H4zM3 6h1v1H3z"/></svg></a></div>
+      <p class="demo__note">The words break into chunky pixels and resolve back to sharp type in steps, like the "blit" in the logo. Plays every few seconds and on tap.</p>
+    </section>
+
+    <section class="demo">
+      <div class="demo__head"><span class="demo__tag">K</span><span class="demo__name">Voxel type</span></div>
+      <div class="demo__stage"><a class="x k" href="#">Explore games <svg class="px-arrow" viewBox="0 0 7 7" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1H3zM4 1h1v1H4zM5 2h1v1H5zM0 3h7v1H0zM5 4h1v1H5zM4 5h1v1H4zM3 6h1v1H3z"/></svg></a></div>
+      <p class="demo__note">No bar: the words themselves are blocks, an ivory face on a crimson body, built like the sculpture. They rise toward you on tap and press flat when clicked.</p>
     </section>
   </main>
   <script>
-    document.querySelectorAll('.demos a').forEach(function (a) {
-      a.addEventListener('click', function (e) { e.preventDefault(); });
-    });
-    document.querySelectorAll('.b-e').forEach(function (b) {
-      b.addEventListener('pointerdown', function () { b.classList.add('is-waving'); setTimeout(function () { b.classList.remove('is-waving'); }, 1400); });
-    });
+    (function () {
+      var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.querySelectorAll('.demos a').forEach(function (a) {
+        a.addEventListener('click', function (e) { e.preventDefault(); });
+        // phones have no hover: a tap plays the move for a moment
+        a.addEventListener('pointerdown', function (e) {
+          if (e.pointerType === 'mouse') return;
+          a.classList.remove('is-on'); void a.offsetWidth; a.classList.add('is-on');
+          clearTimeout(a._t); a._t = setTimeout(function () { a.classList.remove('is-on'); }, 2200);
+        });
+      });
+
+      // G: the bar's pixel blocks
+      document.querySelectorAll('.g__bar').forEach(function (bar) {
+        var n = 26;
+        for (var k = 0; k < n; k++) {
+          var i = document.createElement('i');
+          i.style.setProperty('--n', k);
+          i.style.setProperty('--dx', (Math.round(Math.sin(k * 12.9898) * 3) * 3) + 'px');
+          bar.appendChild(i);
+        }
+      });
+
+      // I: the staircase under the words, rising toward the arrow; the explorer climbs from the first step to the last
+      document.querySelectorAll('.i').forEach(function (a) {
+        var stairs = a.querySelector('.i__stairs'), guy = a.querySelector('.i__guy');
+        function build() {
+          stairs.innerHTML = '';
+          var w = a.offsetWidth, steps = 6, run = w / steps, rise = 4;
+          for (var k = 0; k < steps; k++) {
+            var s = document.createElement('i');
+            s.className = 'i__step';
+            s.style.left = k * run + 'px'; s.style.width = (run + 1) + 'px';
+            s.style.height = (6 + k * rise) + 'px';
+            stairs.appendChild(s);
+          }
+          guy.style.setProperty('--run', ((steps - 1) * run) + 'px');
+          guy.style.setProperty('--rise', (-(steps - 1) * rise) + 'px');
+        }
+        build(); window.addEventListener('resize', build);
+      });
+
+      // J: draw the label small on a canvas and scale it up, pixelated; step the resolution back up to sharp
+      document.querySelectorAll('.j').forEach(function (a) {
+        var label = a.querySelector('.j__label'), text = a.querySelector('.j__text');
+        var c = document.createElement('canvas'), g = c.getContext('2d');
+        label.appendChild(c);
+        function frame(px) {
+          var cs = getComputedStyle(text), w = text.offsetWidth, h = text.offsetHeight * 1.4;
+          w = Math.ceil(w * 1.12);
+          c.style.width = w + 'px'; c.style.height = h + 'px';
+          c.width = Math.max(1, Math.round(w / px)); c.height = Math.max(1, Math.round(h / px));
+          g.clearRect(0, 0, c.width, c.height);
+          g.fillStyle = cs.color;
+          g.font = cs.fontWeight + ' ' + (parseFloat(cs.fontSize) / px) + 'px ' + cs.fontFamily;
+          g.textBaseline = 'middle';
+          if ('letterSpacing' in g) g.letterSpacing = (parseFloat(cs.letterSpacing) || 0) / px + 'px';
+          g.fillText(text.textContent, 0, c.height / 2);
+        }
+        var busy = false;
+        function blit() {
+          if (busy || still) return; busy = true;
+          var seq = [2, 4, 7, 10, 7, 5, 3, 2], n = 0;
+          a.classList.add('is-blitting');
+          (function next() {
+            if (n >= seq.length) { a.classList.remove('is-blitting'); busy = false; return; }
+            frame(seq[n++]); setTimeout(next, 85);
+          })();
+        }
+        a.addEventListener('pointerenter', blit);
+        a.addEventListener('pointerdown', blit);
+        document.fonts.ready.then(function () { setTimeout(blit, 900); setInterval(blit, 5200); });
+      });
+    })();
   </script>
 </body>
 </html>
