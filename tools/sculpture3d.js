@@ -51,8 +51,8 @@ const G = 3.75;                                    // finest letter cell; aligne
 const BODY_Y1 = 45;                                // front plane of the letter
 const JF = BODY_Y1 / G;                            // cells through the depth of the bowl
 // Measured from the reference on a fine grid, in units of the stem's width (2 cubes = 30):
-const STEM = { x0: 30, x1: 60, h: 97.5, y0: 30 };  // 3.2x as tall as wide, one cube deep
-const BOWL = { x0: 45, x1: 120, h: 63.75, rTop: 26.25, rBot: 0, y0: 26.25 };   // one cube deep like the stem; big rounded top-right corner       // two cubes deep (y 15..45), square bottom, small rounded top-right corner
+const STEM = { x0: 30, x1: 60, h: 105, y0: 15 };  // 2 big cubes wide, 2 deep, 7 tall
+const BOWL = { x0: 45, x1: 120, h: 60, rTop: 30, rBot: 0, y0: 15 };    // 2 big cubes deep and 4 tall: the right end is two big cubes thick, the curve carved from them
 const DOOR = { x0: 60, x1: 90, zRect: 33.75, cx: 75, r: 15, recessY: 30 };   // starts at the stem's front corner; deep recess so the red inner wall shows   // narrow arch starting just right of the stem, 11.25 deep
 const LANDING_Z = 52.5;                            // the landing against the stem where the explorer stands
 const STAIR_Y1 = 60;                               // the stair block stands one cube proud of the b's face
@@ -63,7 +63,7 @@ const inCircle = (x, z, cx, cz, r) => (x - cx) ** 2 + (z - cz) ** 2 <= r * r;
 const inStem = (X, Z) => X >= STEM.x0 && X < STEM.x1 && Z >= 0 && Z < STEM.h;
 function inBowl(X, Z) {
   if (X < BOWL.x0 || X >= BOWL.x1 || Z < 0 || Z >= BOWL.h) return false;
-  const Xs = X, Zs = Z;                                                    // the arc is cut on the 3.75 grid
+  const Xs = Math.floor(X / 7.5) * 7.5 + 3.75, Zs = Math.floor(Z / 7.5) * 7.5 + 3.75;   // the arc is cut on a half-cube grid: big cubes, a few half cubes on the curve
   const cxT = BOWL.x1 - BOWL.rTop, czT = BOWL.h - BOWL.rTop;
   if (Xs > cxT && Zs > czT && !inCircle(Xs, Zs, cxT, czT, BOWL.rTop)) return false;
   const cxB = BOWL.x1 - BOWL.rBot, czB = BOWL.rBot;
@@ -211,11 +211,19 @@ function emitPlatform() {
       const flat = cj >= 0 && cj <= 3 && x > -30 && x < 135;                  // keeps its height: under the letter, the stairs and the doorstep
       const under = cj >= 1 && cj <= 2 && x > 30 && x < 105;                       // hidden under the letter: no checker
       let top = 0;
-      if (ring && !flat && r > 0.93) top = CELL / 2;                           // only the odd rim cube stands higher: otherwise a regular row
+      if (ring && !flat) top = r < 0.28 ? -CELL / 2 : r > 0.72 ? CELL / 2 : 0;  // uneven rim: cubes stand at three heights
       const D = bowlDepth(x, y) * (0.96 + 0.08 * hash3(ci, cj, 1, 4));
       const n1 = ring ? 1 : 1 + Math.floor(Math.max(0, D - CELL) / 40);
-      const sy = ring ? 22.5 : CELL;                                          // the outer ring's cubes are stretched taller (15 x 22.5 x 15): a bigger, chunkier front
+      const sy = ring ? [15, 22.5, 30][Math.floor(hash3(ci, cj, 2, 9) * 3)] : CELL;   // and hang to three depths, so the front is a broken, uneven edge
       const drop1 = ring ? sy : n1 * CELL;
+      if (ring && !flat && hash3(ci, cj, 3, 11) < 0.22) {                    // a broken rim cube: four half cubes at mixed heights instead
+        for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
+          const hh = ci * 53 + cj * 17 + a * 3 + b, up = [7.5, 0, -7.5][Math.floor(hash3(hh, 1, 0, 12) * 3)];
+          if (hash3(hh, 2, 0, 13) < 0.2) continue;                            // one may be missing
+          for (let q = 0; q < 3; q++) blocks.push({ X: x - 3.75 + a * 7.5, Y: y - 3.75 + b * 7.5, Z: up - 3.75 - q * 7.5, s: 7.5, f: tierFaces(hh * 5 + q), t: q === 0 ? (hash3(hh, 3, 0, 14) < 0.4 ? 0.04 : 0.95) : tintOf(hh, q, 4, -q * 7.5) });
+        }
+        continue;
+      }
       // tier 1: 15-unit cubes (stretched for the outer ring)
       for (let q = 0; q < n1; q++) {
         const Z = top - sy / 2 - q * CELL;
@@ -456,8 +464,8 @@ const stripLight = (X, Y, Z, w, h, face, intensity) => {                  // sce
   scene.add(l);
 };
 stripLight(28, 46, 75, 4, 45, 'front', 8);                                // left edge of the stem above the landing
-stripLight(118, 46, 31.9, 4, 63.75, 'front', 8);                               // front edge at the right end of the bowl
-stripLight(122, 37.5, 31.9, 4, 63.75, 'right', 3);                               // right end face, along its front edge
+stripLight(118, 46, 30, 4, 60, 'front', 8);                               // front edge at the right end of the bowl
+stripLight(122, 30, 30, 4, 60, 'right', 3);                               // right end face, along its front edge
 edgeLight(67, 92, -70, 160, 100);                                     // low red glow under the island: the cone's tips catch it
 edgeLight(160, 80, -45, 90, 60);
 edgeLight(-45, 70, -40, 80, 55);
