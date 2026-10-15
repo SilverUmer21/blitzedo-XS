@@ -21,3 +21,4 @@ Open `index.html` in a browser (no build step needed).
 - The artwork is rendered on pure black and shown with `mix-blend-mode: screen`, so it blends into the page background.
 - Links to `games.html`, `studio.html` and `contact.html` are placeholders until those pages exist.
 - `demo.html` is a texture demo of the home page (switch between the live render, the old flat red and the pixel stone demo); it is not linked from the site.
+- The wordmark is an inline SVG (also `assets/wordmark.svg`), built from Inter Tight outlines by `tools/wordmark-glyphs.py` and `tools/wordmark-svg.py` (needs `pip install fonttools brotli`).

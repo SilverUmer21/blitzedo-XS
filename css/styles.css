@@ -73,13 +73,15 @@ a { color: inherit; text-decoration: none; }
   border-bottom: 1px solid var(--rule);
 }
 
+/* The wordmark: Inter Tight 760 outlines with a round i dot; the b's bottom-left corner crumbles into pixels, like the
+   voxel sculpture (tools/wordmark-svg.py). */
 .wordmark {
-  font-weight: 700;
+  display: block;
   font-size: clamp(30px, 3.4vw, 56px);
-  line-height: 1;
-  letter-spacing: -0.05em;
-  padding-bottom: 0.08em;
+  line-height: 0;
+  padding: 0.1em 0;
 }
+.wordmark__svg { display: block; height: 0.8em; width: auto; overflow: visible; }
 
 .site-nav {
   display: flex;
@@ -119,7 +121,7 @@ a { color: inherit; text-decoration: none; }
 .site-nav__contact:focus-visible .icon { transform: translate(2px, -2px); }
 .site-nav__contact::after { right: 1.28em; }
 
-.menu-toggle { display: none; }
+.menu-toggle, .site-nav__foot { display: none; }
 
 /* ---------- hero ---------- */
 .hero {
@@ -216,46 +218,117 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 900px) {
   :root { --header-h: 64px; --gutter: 20px; }
 
-  .wordmark { font-size: 30px; }
+  .wordmark { font-size: 32px; }
 
+  /* Menu: the label swaps to Close; three bars (the middle one shorter) fold into a cross */
   .menu-toggle {
+    position: relative;
+    z-index: 2;
     display: inline-flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     min-height: 44px;
-    padding: 0 2px 0 12px;
+    margin-right: -6px;
+    padding: 0 6px 0 14px;
     background: none;
     border: 0;
     color: var(--ivory);
     font: inherit;
     font-size: 17px;
     font-weight: 500;
+    letter-spacing: -0.01em;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
-  .menu-toggle__bars { display: grid; gap: 6px; width: 22px; }
-  .menu-toggle__bars i { display: block; height: 2px; background: currentColor; transition: transform 0.2s ease; }
-  .menu-toggle[aria-expanded="true"] .menu-toggle__bars i:first-child { transform: translateY(4px) rotate(45deg); }
-  .menu-toggle[aria-expanded="true"] .menu-toggle__bars i:last-child { transform: translateY(-4px) rotate(-45deg); }
-
-  .site-nav {
+  .menu-toggle__label { min-width: 2.9em; text-align: right; }
+  .menu-toggle__icon { position: relative; width: 26px; height: 16px; }
+  .menu-toggle__icon i {
     position: absolute;
-    left: 0; right: 0; top: 100%;
-    display: none;
+    right: 0;
+    width: 26px;
+    height: 2px;
+    background: currentColor;
+    transition: transform 0.32s cubic-bezier(0.7, 0, 0.2, 1), width 0.32s cubic-bezier(0.7, 0, 0.2, 1), opacity 0.2s ease;
+  }
+  .menu-toggle__icon i:nth-child(1) { top: 0; }
+  .menu-toggle__icon i:nth-child(2) { top: 7px; width: 16px; }
+  .menu-toggle__icon i:nth-child(3) { top: 14px; }
+  .menu-toggle:hover .menu-toggle__icon i:nth-child(2) { width: 26px; }
+  .menu-toggle[aria-expanded="true"] .menu-toggle__icon i:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .menu-toggle[aria-expanded="true"] .menu-toggle__icon i:nth-child(2) { width: 0; opacity: 0; }
+  .menu-toggle[aria-expanded="true"] .menu-toggle__icon i:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  /* the open menu: a full screen under the header, revealed by a stepped (pixel) wipe; big links slide in one by one */
+  .site-nav {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    top: var(--header-h);
+    z-index: 1;
+    display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 0;
-    padding: 6px 0 14px;
+    padding: 12px var(--gutter) max(28px, env(safe-area-inset-bottom));
     background: var(--bg);
-    border-bottom: 1px solid var(--rule);
-    font-size: 26px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
+    font-size: clamp(44px, 13.5vw, 76px);
+    font-weight: 700;
+    letter-spacing: -0.045em;
+    line-height: 1;
+    visibility: hidden;
+    clip-path: inset(0 0 100% 0);
+    transition: clip-path 0.42s steps(8, end), visibility 0s linear 0.42s;
   }
-  .site-nav.is-open { display: flex; }
-  .site-nav a { min-height: 56px; padding: 0; justify-content: space-between; }
-  .site-nav a::after { display: none; }
-  .site-nav a + a { border-top: 1px solid var(--rule); }
-  .site-nav__contact .icon { width: 20px; height: 20px; }
+  .site-nav.is-open { visibility: visible; clip-path: inset(0 0 0 0); transition: clip-path 0.42s steps(8, end), visibility 0s; }
+  .site-nav a {
+    min-height: 0;
+    padding: 0.3em 0 0.26em;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--rule);
+    opacity: 0;
+    transform: translateY(0.4em);
+    transition: opacity 0.3s ease, transform 0.42s cubic-bezier(0.2, 0.7, 0.2, 1), color 0.2s ease;
+  }
+  .site-nav.is-open a { opacity: 1; transform: none; }
+  .site-nav.is-open a:nth-child(1) { transition-delay: 0.16s; }
+  .site-nav.is-open a:nth-child(2) { transition-delay: 0.22s; }
+  .site-nav.is-open a:nth-child(3) { transition-delay: 0.28s; }
+  .site-nav a:active { color: var(--red-hover); }
+  /* a right arrow on Games and Studio, drawn as a mask so it takes the text colour; Contact keeps its up-right arrow */
+  .site-nav a::after {
+    content: "";
+    position: static;
+    display: block;
+    width: 0.46em; height: 0.46em;
+    background: currentColor;
+    transform: none;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 8h12M8.5 3l5 5-5 5' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='square'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 8h12M8.5 3l5 5-5 5' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='square'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  .site-nav a.site-nav__contact::after { display: none; }
+  .site-nav__contact .icon { width: 0.42em; height: 0.42em; }
+  html.menu-open { overflow: hidden; }
+  /* the menu's foot: the tagline and the explorer waving (frames 8-11 of the explorer sheet) */
+  .site-nav__foot {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-top: auto;
+    font-size: 17px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--ivory-muted);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .site-nav.is-open .site-nav__foot { opacity: 1; transition-delay: 0.36s; }
+  .site-nav__explorer {
+    width: 84px;
+    aspect-ratio: 322 / 388;
+    background: url("../assets/explorer.png") 61.538% 0 / 1400% 100% no-repeat;
+    image-rendering: pixelated;
+  }
+  .site-nav.is-open .site-nav__explorer { animation: menu-wave 0.56s steps(4) infinite; }
+  @keyframes menu-wave { from { background-position-x: 61.538%; } to { background-position-x: 92.308%; } }
 
   /* mobile: headline, then the sculpture lifted up, then the action at the bottom of the first screen */
   .hero {
@@ -289,5 +362,5 @@ a { color: inherit; text-decoration: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition: none !important; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
 }

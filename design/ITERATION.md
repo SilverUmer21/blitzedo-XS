@@ -16,7 +16,9 @@ Use [DESIGN.md](../DESIGN.md) as the current source of design decisions. Add rev
 - [ ] Replace provisional game posters with artwork faithful to the real games.
 - [ ] Approve mobile Home framing without simplifying the b sculpture.
 - [ ] Review mobile Studio and Contact; remove numbered process markers.
-- [ ] Refine wordmark, font selection, palette, buttons and form states.
+- [x] Wordmark: Inter Tight 760 outlines, round i dot, the b's corner crumbling into pixels (`tools/wordmark-svg.py`).
+- [x] Menu: Menu/Close label, three bars folding into a cross, full-screen menu with a stepped pixel wipe and the waving explorer.
+- [ ] Refine form states.
 - [ ] Review static layouts at 360, 390, 768 and 1440 pixels.
 - [ ] Approve desktop and mobile static screens before implementation.
 
