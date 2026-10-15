@@ -15,9 +15,10 @@
   var canvas = document.getElementById('sculpture');
   var ctx = canvas.getContext('2d');
 
-  var K = 2;                     // voxels per unit (unit = layout coordinates below)
-  var PX_PER_VOXEL = 5.6;        // output scale
-  var UNIT_PX = PX_PER_VOXEL * K;
+  var K = 0.8;                   // voxels per unit (unit = layout coordinates below); smaller = chunkier blocks
+  function R(v) { return Math.round(v * K); }
+  var UNIT_PX = 10.8;            // output scale, px per unit
+  var PX_PER_VOXEL = UNIT_PX / K;
 
   /* ---------- palette (red tied to DESIGN.md #D51D22) ---------- */
   var RED_TOP = [255, 54, 46];
@@ -48,8 +49,8 @@
   }
 
   /* ---------- voxel grid (indices are voxels; geometry is written in units) ---------- */
-  var OX = 44 * K, OY = 56 * K, OZ = 112 * K;
-  var NX = 200 * K, NY = 124 * K, NZ = 250 * K;
+  var OX = R(44), OY = R(56), OZ = R(112);
+  var NX = R(200), NY = R(124), NZ = R(250);
   var solid = new Uint8Array(NX * NY * NZ);
   var chips = [];                 // voxels removed after the clean shape is captured (weathering)
   var shape = null;               // clean shape, used for rim light so chips do not read as edges
@@ -88,37 +89,35 @@
     return inCircle(X, Z, DOOR.cx, DOOR.zRect, DOOR.r);
   }
 
-  // left flight climbs to the landing, right flight descends to the doorway
-  var STAIR_X0 = 9;
-  function stairTop(X) {
-    if (X < STAIR_X0) return 0;
-    if (X < LANDING.x0) return 8 * (Math.floor((X - STAIR_X0) / 2.5) + 1);
-    if (X < LANDING.x1) return LANDING.z;
-    var k = Math.floor((X - LANDING.x1) / 4);
-    var z = LANDING.z - 6.25 * k;
-    return z > 3 ? z : 0;
+  // Left: a block of big steps climbing to the landing. Right: a thin ribbon of
+  // small steps stepping down the wall to the doorway.
+  function leftTop(X) {
+    if (X < 1) return 0;
+    return Math.min(45, 15 * (Math.floor((X - 1) / 7.5) + 1));
   }
+  var RIBBON = { x0: 28, run: 4, rise: 6, h: 8, steps: 8 };
 
   function buildLetter() {
     var i, j, k;
     // main body
-    for (i = STEM.x0 * K; i < BOWL.x1 * K; i++) {
+    for (i = R(STEM.x0); i < R(BOWL.x1); i++) {
       var X = un(i);
-      for (k = 0; k < STEM.h * K; k++) {
+      for (k = 0; k < R(STEM.h); k++) {
         var Z = un(k);
         if (!inLetter(X, Z)) continue;
-        var edge = !inLetter(X - 0.6, Z) || !inLetter(X + 0.6, Z) || !inLetter(X, Z - 0.6) || !inLetter(X, Z + 0.6);
-        for (j = 0; j < BODY_Y1 * K; j++) {
-          if (inDoorOpening(X, Z) && j >= (BODY_Y1 - DOOR.recess) * K) continue; // doorway recess
+        var eps = 0.5 / K + 0.1;
+        var edge = !inLetter(X - eps, Z) || !inLetter(X + eps, Z) || !inLetter(X, Z - eps) || !inLetter(X, Z + eps);
+        for (j = 0; j < R(BODY_Y1); j++) {
+          if (inDoorOpening(X, Z) && j >= R((BODY_Y1 - DOOR.recess))) continue; // doorway recess
           put(i, j, k, 1);
           if (edge && Z > 2 && hash3(i, j, k, 41) < 0.1) chips.push(ix(i, j, k)); // chipped silhouette
         }
       }
     }
     // small weathering chips in the face, away from the doorway
-    for (i = STEM.x0 * K; i < BOWL.x1 * K; i++) {
-      for (k = 0; k < STEM.h * K; k++) {
-        var jj = BODY_Y1 * K - 1, xu = un(i), zu = un(k);
+    for (i = R(STEM.x0); i < R(BOWL.x1); i++) {
+      for (k = 0; k < R(STEM.h); k++) {
+        var jj = R(BODY_Y1) - 1, xu = un(i), zu = un(k);
         if (get(i, jj, k) && hash3(i, 0, k, 43) < 0.006 &&
             !(xu > DOOR.x0 - 4 && xu < DOOR.x1 + 4 && zu < 52)) {
           chips.push(ix(i, jj, k));
@@ -127,26 +126,42 @@
         }
       }
     }
-    // stair wedge in front of the face
-    for (i = STAIR_X0 * K; i < 62 * K; i++) {
-      var top = Math.round(stairTop(un(i)) * K);
+    // left block of big steps (own depth, a little proud of the face)
+    for (i = R(1); i < R(LANDING.x0); i++) {
+      var top = R(leftTop(un(i)));
       for (k = 0; k < top; k++) {
-        for (j = BODY_Y1 * K; j < WEDGE_Y1 * K; j++) {
+        for (j = 0; j < R((BODY_Y1 + 6)); j++) {
           put(i, j, k, 4);
-          if (k > 4 && hash3(i, j, k, 45) < 0.012) chips.push(ix(i, j, k));
+          if (k > 4 && hash3(i, j, k, 45) < 0.02) chips.push(ix(i, j, k));
+        }
+      }
+    }
+    // landing ledge the explorer stands on
+    for (i = R((LANDING.x0 - 2)); i < R((LANDING.x1 + 4)); i++) {
+      for (j = R(BODY_Y1); j < R((BODY_Y1 + 6)); j++) {
+        for (k = R((LANDING.z - 6)); k < R(LANDING.z); k++) put(i, j, k, 4);
+      }
+    }
+    // ribbon of steps down to the door
+    for (var st = 0; st < RIBBON.steps; st++) {
+      var zt = LANDING.z - RIBBON.rise * (st + 1) + RIBBON.rise;
+      if (st === 0) continue;
+      for (i = Math.round(R((RIBBON.x0 + 4 + RIBBON.run * (st - 1)))); i < Math.round(R((RIBBON.x0 + 4 + RIBBON.run * st))); i++) {
+        for (j = R(BODY_Y1); j < R((BODY_Y1 + 5)); j++) {
+          for (k = Math.max(0, Math.round(R((zt - RIBBON.h)))); k < Math.round(R(zt)); k++) put(i, j, k, 4);
         }
       }
     }
     // doorstep: red-lit tiles in front of the door
-    for (i = 59 * K; i < 92 * K; i++) {
-      for (j = BODY_Y1 * K; j < (BODY_Y1 + 7) * K; j++) {
+    for (i = R(59); i < R(92); i++) {
+      for (j = R(BODY_Y1); j < R((BODY_Y1 + 7)); j++) {
         if (hash3(i, j, 0, 46) < 0.02) continue;
         put(i, j, 0, 2); put(i, j, 1, 2); put(i, j, 2, 2);
       }
     }
   }
 
-  var PLAT = { x0: -22, x1: 130, y0: -22, y1: 46 };
+  var PLAT = { x0: -26, x1: 132, y0: -20, y1: 44 };
   var PLAT_CX = (PLAT.x0 + PLAT.x1) / 2, PLAT_CY = (PLAT.y0 + PLAT.y1) / 2;
   var PLAT_AX = (PLAT.x1 - PLAT.x0) / 2, PLAT_AY = (PLAT.y1 - PLAT.y0) / 2;
   // rounded-square distance: 0 at the centre, 1 at the rim
@@ -155,11 +170,11 @@
     return Math.pow(Math.pow(u, 7) + Math.pow(v, 7), 1 / 7);
   }
   var RIM_M = 0.8;
-  function platCell(x, y) { return hash3(Math.floor(x / 3.5), Math.floor(y / 3.5), 0, 2); }
+  function platCell(x, y) { return hash3(Math.floor(x / 5), Math.floor(y / 5), 0, 2); }
 
   function buildPlatform() {
-    for (var i = PLAT.x0 * K; i < PLAT.x1 * K; i++) {
-      for (var j = PLAT.y0 * K; j < PLAT.y1 * K; j++) {
+    for (var i = R(PLAT.x0); i < R(PLAT.x1); i++) {
+      for (var j = R(PLAT.y0); j < R(PLAT.y1); j++) {
         var x = un(i), y = un(j);
         var m = platM(x, y);
         var n = vnoise(i, j, 0, 6, 1);
@@ -169,16 +184,16 @@
         var vox = hash3(i, j, 0, 3);
         var core = 1 - m;                                                       // linear taper: inverted pyramid
         var rock = vnoise(i, j, 0, 7, 6);
-        var hang = 4 + 74 * Math.pow(core, 1.5) * (0.55 + 0.45 * rock) * (0.62 + 0.76 * cellS) + 10 * Math.pow(cellL, 1.3) * Math.pow(m, 1.2) +
-                   1.5 * vox;
-        hang = Math.round(hang * K);
+        var hang = 5 + 72 * Math.pow(core, 1.35) * (0.6 + 0.4 * rock) * (0.45 + 1.1 * cellL) + 12 * cellL * Math.pow(m, 1.2) +
+                   2 * cellS + 1 * vox;
+        hang = Math.round(R(hang));
         var inFootprint = x > -3 && x < 121 && y > -3 && y < 37;
         var top = -1;
-        if (m > RIM_M && !inFootprint) top += Math.round((cellL < 0.28 ? -1.5 : cellL > 0.78 ? 1.5 : 0) * K);   // rim cubes stand out
-        else if (!inFootprint && hash3(Math.floor(x / 4.5), Math.floor(y / 4.5), 1, 5) > 0.93) top += 3 * K;
+        if (m > RIM_M && !inFootprint) top += Math.round(R((cellL < 0.3 ? -2.5 : cellL > 0.75 ? 2.5 : 0)));   // rim cubes stand out
+        else if (!inFootprint && hash3(Math.floor(x / 4.5), Math.floor(y / 4.5), 1, 5) > 0.93) top += R(3);
         for (var k = -hang; k <= top; k++) {
           put(i, j, k, 1);
-          if (k < -4 * K && vnoise(i, j, k, 3.5, 9) > 0.8) chips.push(ix(i, j, k)); // cracks in the rock
+          if (k < -R(4) && vnoise(i, j, k, 3.5, 9) > 0.8) chips.push(ix(i, j, k)); // cracks in the rock
         }
       }
     }
@@ -191,10 +206,10 @@
   ];
   function buildCubes() {
     CUBES.forEach(function (c, n) {
-      var s = c[3] * K;
+      var s = Math.max(2, R(c[3]));
       for (var a = 0; a < s; a++) for (var b = 0; b < s; b++) for (var d = 0; d < s; d++) {
         if (hash3(a, b, d + n * 7, 60) < 0.08) continue;
-        put(c[0] * K + a, c[1] * K + b, c[2] * K + d, 3);
+        put(R(c[0]) + a, R(c[1]) + b, R(c[2]) + d, 3);
       }
     });
   }
@@ -232,9 +247,9 @@
 
   function shadowed(x, y, z, f) {
     var p0 = x + 0.5 + (f === 2 ? 0.6 : 0), p1 = y + 0.5 + (f === 1 ? 0.6 : 0), p2 = z + 0.5 + (f === 0 ? 0.6 : 0);
-    for (var t = 1.4; t < 36 * K; t += 1) {
+    for (var t = 1.4; t < R(36); t += 1) {
       var qz = Math.floor(p2 + L[2] * t);
-      if (qz > 125 * K) break;
+      if (qz > R(125)) break;
       if (get(Math.floor(p0 + L[0] * t), Math.floor(p1 + L[1] * t), qz)) return 1;
     }
     return 0;
@@ -259,7 +274,7 @@
              : f === 1 ? [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]]
              :           [[0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
     var best = 0;
-    for (var d = 1; d <= 4; d++) {
+    for (var d = 1; d <= 2; d++) {
       for (var q = 0; q < 4; q++) {
         var v = dirs[q];
         var qx = x + d * v[0], qy = y + d * v[1], qz = z + d * v[2];
@@ -269,8 +284,8 @@
     return best;
   }
 
-  var DOOR_BACK_J = (BODY_Y1 - DOOR.recess) * K - 1;
-  var DOOR_LEFT_I = DOOR.x0 * K - 1;
+  var DOOR_BACK_J = R((BODY_Y1 - DOOR.recess)) - 1;
+  var DOOR_LEFT_I = R(DOOR.x0) - 1;
   function doorFace(x, y, z, f) {
     var xu = un(x), yu = un(y);
     if (xu < DOOR.x0 - 1 || xu > DOOR.x1 + 1) return 0;
@@ -299,26 +314,26 @@
     }
 
     /* charcoal stone */
-    var jit = (hash3(x, y, z, 10 + f) - 0.5) * 20 + (hash3(x >> 2, y >> 2, z >> 2, 14 + f) - 0.5) * 16 +
-              (hash3(Math.floor(x / 6), Math.floor(y / 6), Math.floor(z / 6), 17 + f) - 0.5) * 12 + (vnoise(x, y, z, 2.5, 20) - 0.5) * 14;
-    var base0 = f === 0 ? 62 : f === 1 ? 40 : 25;
+    var jit = (hash3(x, y, z, 10 + f) - 0.5) * 20 + (hash3(x >> 1, y >> 1, z >> 1, 14 + f) - 0.5) * 16 +
+              (hash3(Math.floor(x / 3), Math.floor(y / 3), Math.floor(z / 3), 17 + f) - 0.5) * 20 + (vnoise(x, y, z, 2.5, 20) - 0.5) * 14;
+    var base0 = f === 0 ? 46 : f === 1 ? 28 : 16;
     var g = base0 + jit;
     // dark seams between larger 3-unit blocks, with the odd gap
     var sa = f === 0 ? x : f === 1 ? x : y, sb = f === 0 ? y : z;
-    if ((sa % 6 === 0 || sb % 6 === 0) && hash3(x, y, z, 19) > 0.25) g *= 0.7;
+    if ((sa % 3 === 0 || sb % 3 === 0) && hash3(x, y, z, 19) > 0.4) g *= 0.74;
     if (hash3(x, y, z, 21) < 0.012) g *= 0.35;                            // pits
     var ao = aoOf(x, y, z, f);
     g *= 1 - 0.5 * ao;
     var sh = shadowed(x, y, z, f);
     if (sh) g *= 0.5;
-    if (z < -6 * K) g *= 1 - 0.32 * Math.min(1, -zu / 70);
-    g = Math.max(5, g);
+    if (z < -R(6)) g *= 1 - 0.32 * Math.min(1, -zu / 70);
+    g = Math.max(4, g);
     var stone = [g, g, g * 0.98];
 
     /* red: flat top surfaces, rim light on convex edges, rare specks */
     var deep = zu < -9 && mat !== 3;
     var rim = rimOf(x, y, z, f);
-    var rimP = rim === 0 ? 0 : (mat === 1 && zu <= 0 ? [0, 0.85, 0.6, 0.3, 0.1] : [0, 0.92, 0.82, 0.55, 0.28])[rim];
+    var rimP = rim === 0 ? 0 : (mat === 1 && zu <= 0 ? [0, 0.7, 0.3] : [0, 0.9, 0.5])[rim];
     var p = 0;
     if (f === 0) {
       var curved = mat === 1 && xu > BOWL.x1 - BOWL.rTop && zu > BOWL.h - BOWL.rTop - 2 && zu > 20 && yu >= 0 && yu < BODY_Y1;
@@ -327,13 +342,13 @@
       } else {
         var patch = vnoise(x, y, 0, 8, 31 + (z & 3));
         var onRim = mat === 1 && zu <= 2 && platM(xu, yu) > RIM_M && !(xu > -3 && xu < 121 && yu > -3 && yu < 37);
-        if (patch > (zu <= 0 && mat === 1 ? 0.54 : 0.44)) p = hash3(x, y, z, 33) < 0.1 ? 0.2 : 0.95;
+        if (patch > (zu <= 0 && mat === 1 ? 0.66 : 0.5)) p = hash3(x, y, z, 33) < 0.1 ? 0.2 : 0.95;
         if (mat === 4 || mat === 2) p = 0.93;
-        if (onRim) p = platCell(xu, yu) < 0.52 ? 0.96 : 0.06;              // chunky red / black cubes along the rim
+        if (onRim) p = platCell(xu, yu) < 0.36 ? 0.96 : 0.05;              // chunky red / black cubes along the rim
         else p = Math.max(p, rimP);
       }
     } else {
-      var gate = mat === 3 || mat === 4 ? 1 : (vnoise(x, y, z, 9, 30) > 0.46 ? 1 : 0.25);
+      var gate = mat === 3 ? 1 : mat === 4 ? 0.3 : (vnoise(x, y, z, 9, 30) > 0.46 ? 1 : 0.25);
       p = rimP * gate;
       if (mat === 2) p = 0.9;
     }
@@ -360,8 +375,9 @@
 
   function rgb(c) { return 'rgb(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ')'; }
 
+  var SUB = 3;
   function face(x, y, z, f, mat) {
-    var col = rgb(shade(x, y, z, f, mat)), p;
+    var c = shade(x, y, z, f, mat), p;
     if (f === 0) {
       p = [px(x, y), py(x, y, z + 1), px(x + 1, y), py(x + 1, y, z + 1), px(x + 1, y + 1), py(x + 1, y + 1, z + 1), px(x, y + 1), py(x, y + 1, z + 1)];
     } else if (f === 1) {
@@ -369,13 +385,31 @@
     } else {
       p = [px(x + 1, y), py(x + 1, y, z), px(x + 1, y + 1), py(x + 1, y + 1, z), px(x + 1, y + 1), py(x + 1, y + 1, z + 1), px(x + 1, y), py(x + 1, y, z + 1)];
     }
+    // painterly grain: each block face is split into sub-cells with their own brightness
+    var isRed = c[0] > 90 && c[0] > c[1] * 2.2;
+    var amp = isRed ? 0.2 : 0.34;
+    var ux = (p[2] - p[0]) / SUB, uy = (p[3] - p[1]) / SUB, vx = (p[6] - p[0]) / SUB, vy = (p[7] - p[1]) / SUB;
+    ctx.lineWidth = 0.7;
+    for (var a = 0; a < SUB; a++) {
+      for (var b = 0; b < SUB; b++) {
+        var k = 1 + (hash3(x * 3 + a, y * 3 + b, z * 3 + f, 120 + f) - 0.5) * amp;
+        var col = 'rgb(' + Math.min(255, c[0] * k | 0) + ',' + Math.min(255, c[1] * k | 0) + ',' + Math.min(255, c[2] * k | 0) + ')';
+        var x0 = p[0] + ux * a + vx * b, y0 = p[1] + uy * a + vy * b;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0); ctx.lineTo(x0 + ux, y0 + uy); ctx.lineTo(x0 + ux + vx, y0 + uy + vy); ctx.lineTo(x0 + vx, y0 + vy);
+        ctx.closePath();
+        ctx.fillStyle = col; ctx.strokeStyle = col;
+        ctx.fill(); ctx.stroke();
+      }
+    }
+    // block bevel: soft light on the upper edge, dark seam round the block
     ctx.beginPath();
-    ctx.moveTo(p[0], p[1]); ctx.lineTo(p[2], p[3]); ctx.lineTo(p[4], p[5]); ctx.lineTo(p[6], p[7]);
-    ctx.closePath();
-    ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = 0.8;
-    ctx.fill(); ctx.stroke();
-    ctx.strokeStyle = 'rgba(0,0,0,0.26)'; ctx.lineWidth = 0.45;       // fine voxel seam
-    ctx.stroke();
+    ctx.moveTo(p[6], p[7]); ctx.lineTo(p[4], p[5]);
+    ctx.strokeStyle = isRed ? 'rgba(255,170,150,0.22)' : 'rgba(255,255,255,0.09)';
+    ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(p[0], p[1]); ctx.lineTo(p[2], p[3]); ctx.lineTo(p[4], p[5]); ctx.lineTo(p[6], p[7]); ctx.closePath();
+    ctx.strokeStyle = 'rgba(0,0,0,0.38)'; ctx.lineWidth = 0.9; ctx.stroke();
   }
 
   for (X = -OX; X < NX - OX; X++) {
@@ -389,6 +423,30 @@
       }
     }
   }
+
+  /* ---------- soft red glow around lit red surfaces (stone is left untouched) ---------- */
+  (function glow() {
+    var t = document.createElement('canvas');
+    t.width = W; t.height = H;
+    var g = t.getContext('2d');
+    g.drawImage(canvas, 0, 0);
+    var img = g.getImageData(0, 0, W, H), d = img.data;
+    for (var i = 0; i < d.length; i += 4) {
+      var r = d[i], gg = d[i + 1];
+      if (!(r > 150 && r > gg * 2.4)) d[i + 3] = 0;
+    }
+    g.putImageData(img, 0, 0);
+    var t2 = document.createElement('canvas');
+    t2.width = W; t2.height = H;
+    var g2 = t2.getContext('2d');
+    g2.filter = 'blur(' + Math.round(UNIT_PX * 1.4) + 'px)';
+    g2.drawImage(t, 0, 0);
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.55;
+    ctx.drawImage(t2, 0, 0);
+    ctx.restore();
+  })();
 
   /* ---------- doorway bloom ---------- */
   (function bloom() {
@@ -410,7 +468,7 @@
 
   /* ---------- explorer: smooth ivory sprite with a red scarf ---------- */
   (function explorer() {
-    var fxp = px((LANDING.x0 + 1.8) * K, 29 * K), fyp = py((LANDING.x0 + 1.8) * K, 29 * K, LANDING.z * K);
+    var fxp = px((LANDING.x0 + 2.2) * K, 27 * K), fyp = py((LANDING.x0 + 2.2) * K, 27 * K, LANDING.z * K);
     var s = UNIT_PX * 1.02;                       // 1 sprite unit
     ctx.save();
     ctx.translate(fxp, fyp);
