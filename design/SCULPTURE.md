@@ -115,16 +115,23 @@ Then update the `<img>` `width` and `height` in `index.html` to the printed size
 - The reference's island columns are more clearly separated, with gaps between them.
 - The upper flight is partly hidden behind the tower from this camera.
 
-## The explorer (animated pixel-art sprite)
+## The explorer (3D voxel figure, animated)
 
-`js/explorer.js` draws him as an SVG of single pixels (34 × 31 grid) over the sculpture, so he can move.
+He is built from voxels in `tools/sculpture-vox.js` (`explorerVoxels`, voxel 1.25 units) and rendered by the same camera, so
+he matches the sculpture's 3D pixel look. The build renders 14 frames into `assets/explorer.png`:
 
-- **Look**: white rounded helmet with a black visor on the side facing the stairs and a soft grey shade; a warm red rim light
-  on his left edge from the sculpture's glow; red scarf collar with a highlight; white tunic; dark boots; one-pixel dark outline.
-- **Scarf**: a solid band streaming left from the collar, three pixels thick near the neck, thinning to a notched fork, with a
-  dark outline. It flutters in four frames.
-- **Idle animation** (100 ms ticks): breathing bob; a visor glint sweeping across every 4.5 s; a glance toward the viewer every
-  8 s; a wave every 13 s and on hover. With `prefers-reduced-motion` he stays still.
-- **Placement**: the build writes where the landing sits in the render (`window.__anchor`, saved to `assets/sculpture.json`).
-  The same numbers go on the stage as `data-explorer="x y block"`, so the sprite stands on the landing at any screen size,
-  about 1.55 big blocks tall.
+- 0-7: idle (scarf tail flutters, small breathing bob); 8-11: wave; 12-13: a glance toward the viewer.
+- Look: white rounded helmet with a black visor and glint, red scarf collar with a waving tail, white tunic with a red hem,
+  dark boots.
+- `js/explorer.js` plays the frames over the image (140 ms ticks): idle loop, a glance every ~10 s, a wave every ~15 s and on
+  hover. Static with `prefers-reduced-motion`.
+- Placement: the build writes the frame box (fractions of the image) to `assets/sculpture.json`; the same numbers go on the
+  stage as `data-explorer="x y w h count"`, so he stands on the top landing at any screen size.
+
+![Explorer frames](../references/explorer-frames.png)
+
+## Demo: pixel-texture red (not live)
+
+`DEMO=redtex CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/build-sculpture.js` renders `assets/demo-redtex.webp`:
+each red block top gets a crafted 6 × 6 pixel tile (lit top-left edge, shaded bottom-right edge, a dark corner and specks),
+like the explorer's texture. Comparison: [`demo-redtex-compare.png`](references/sculpture/demo-redtex-compare.png).

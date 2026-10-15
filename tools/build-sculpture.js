@@ -45,8 +45,13 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/ja
   await page.waitForFunction('window.__sculptureReady === true', null, { timeout: 280000 });
   const size = await page.evaluate('window.__sculptureSize');
   console.log('scene', JSON.stringify(await page.evaluate('window.__sculptureStats')));
-  const anchor = await page.evaluate('window.__anchor');
-  if (anchor) { fs.writeFileSync(path.join(__dirname, '..', 'assets', 'sculpture.json'), JSON.stringify({ explorer: anchor }, null, 2) + '\n'); console.log('anchor', JSON.stringify(anchor)); }
+  const frames = await page.evaluate('window.__explorerFrames');
+  if (frames) {
+    fs.writeFileSync(path.join(__dirname, '..', 'assets', 'sculpture.json'), JSON.stringify({ explorer: frames }, null, 2) + '\n');
+    const sheet = await page.evaluate("window.__explorerSheet.toDataURL('image/png')");
+    fs.writeFileSync(path.join(__dirname, '..', 'assets', 'explorer.png'), Buffer.from(sheet.split(',')[1], 'base64'));
+    console.log('explorer', JSON.stringify(frames));
+  }
   if (process.env.PROBE) console.log('probe', JSON.stringify(await page.evaluate(`(${process.env.PROBE}).map((p) => window.__project(...p))`)));
 
   const assets = path.join(__dirname, '..', 'assets');
@@ -64,6 +69,13 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/ja
     const out = path.join(assets, name);
     fs.writeFileSync(out, Buffer.from(url.split(',')[1], 'base64'));
     console.log(`wrote ${path.relative(process.cwd(), out)} (${width}px wide, ${(fs.statSync(out).size / 1024) | 0} KB); source ${size[0]}x${size[1]}`);
+  }
+  if (process.env.DEMO) {                              // e.g. DEMO=redtex: render the demo variant to assets/demo-<name>.webp
+    await page.goto(`http://127.0.0.1:${port}/render.html?demo=${process.env.DEMO}`);
+    await page.waitForFunction('window.__sculptureReady === true', null, { timeout: 280000 });
+    const url = await page.evaluate("window.__sculptureCanvas.toDataURL('image/webp', 0.95)");
+    fs.writeFileSync(path.join(assets, `demo-${process.env.DEMO}.webp`), Buffer.from(url.split(',')[1], 'base64'));
+    console.log('wrote demo', process.env.DEMO);
   }
   await browser.close();
   server.close();

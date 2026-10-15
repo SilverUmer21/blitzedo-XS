@@ -171,7 +171,7 @@ function buildIsland() {
 }
 
 /* ---------- loose floating cubes ---------- */
-const LOOSE = [[-40, 70, -40, 11.25], [-10, 100, -75, 7.5], [40, 112, -100, 11.25], [118, 104, -78, 7.5], [160, 84, -50, 11.25], [175, 40, -30, 7.5]];
+const LOOSE = [[-40, 70, -30, 11.25], [-10, 96, -52, 7.5], [150, 84, -44, 11.25], [172, 40, -26, 7.5]];
 function buildLoose() {
   LOOSE.forEach(([X, Y, Z, s]) => {
     fillBox(X - s / 2, X + s / 2, Y - s / 2, Y + s / 2, Z - s / 2, Z + s / 2, KIND.LOOSE, newBlock(true));
@@ -204,7 +204,25 @@ function roughen() {
 const STONE_FACE = { top: 1.5, front: 1.0, right: 0.74 };
 const RED_FACE = { top: 1.0, front: 0.86, right: 0.66 };
 const REDS = [[0.93, 0.17, 0.15], [0.88, 0.14, 0.12], [0.98, 0.27, 0.22], [0.74, 0.1, 0.09]];
+const DEMO_REDTEX = /demo=redtex/.test(location.search);
+// demo: red as a crafted pixel-art tile per big block (like the explorer's pixel art): lit top-left edge, shaded bottom-right
+// edge, a dark corner, and a few highlight / shade specks inside
+function redTile(i, j, k, f) {
+  const loc = (v) => Math.floor((((v % 15) + 15) % 15) / V);          // 0..5 within the block
+  const X = cx(i), Y = cy(j), Z = cz(k);
+  const u = f === 2 ? loc(Y) : loc(X), w = f === 0 ? loc(Y) : 5 - loc(Z);
+  const hb = Math.floor(X / 15) * 31 + Math.floor(Y / 15) * 17 + Math.floor(Z / 15) * 7;
+  const C = { H: [1.0, 0.42, 0.33], h: [1.0, 0.31, 0.24], R: [0.9, 0.15, 0.13], r: [0.66, 0.08, 0.07], d: [0.42, 0.04, 0.04] };
+  let c;
+  if ((u === 5 && w === 5)) c = C.d;
+  else if (u === 0 || w === 0) c = (u + w) % 3 === 0 ? C.h : C.H;
+  else if (u === 5 || w === 5) c = C.r;
+  else { const n = hash3(hb, u * 7 + w, f, 77); c = n < 0.12 ? C.h : n > 0.9 ? C.r : C.R; }
+  const m = f === 0 ? 1.0 : f === 1 ? 0.86 : 0.68;
+  return [c[0] * m, c[1] * m, c[2] * m];
+}
 function redColour(i, j, k, f) {
+  if (DEMO_REDTEX) return redTile(i, j, k, f);
   const n = hash3(i, j, k, 40 + f);
   const c = n < 0.03 ? REDS[3] : n < 0.86 ? REDS[0] : n < 0.94 ? REDS[1] : REDS[2];
   const m = f === 0 ? RED_FACE.top : f === 1 ? RED_FACE.front : RED_FACE.right;
@@ -421,6 +439,92 @@ octx.drawImage(renderer.domElement, 0, 0);
   const t2 = document.createElement('canvas'); t2.width = W; t2.height = H;
   const g2 = t2.getContext('2d'); g2.filter = 'blur(' + Math.round(UNIT_PX * 2.2) + 'px)'; g2.drawImage(t, 0, 0);
   octx.globalCompositeOperation = 'screen'; octx.globalAlpha = 0.25; octx.drawImage(t2, 0, 0);
+}
+
+/* ---------- the explorer: a 3D voxel figure, rendered with the same camera into animation frames ---------- */
+// Voxels of e = 1.25 units (half the world voxel): finer, so he reads as a detailed pixel-art figure. He faces +X (down the stairs).
+function explorerVoxels(fr) {
+  const v = new Map();
+  const set = (x, y, z, c) => v.set(x + ',' + y + ',' + z, c);
+  const box = (x0, x1, y0, y1, z0, z1, c, skip) => { for (let x = x0; x < x1; x++) for (let y = y0; y < y1; y++) for (let z = z0; z < z1; z++) if (!skip || !skip(x, y, z)) set(x, y, z, typeof c === 'function' ? c(x, y, z) : c); };
+  const b = fr.bob;
+  // legs and boots (one leg a step forward)
+  box(-2, 0, -2, 0, 0, 4, 'w'); box(0, 2, 0, 2, 0, 4, 'W');
+  box(-2, 1, -2, 0, 0, 1, 'B'); box(0, 3, 0, 2, 0, 1, 'B');
+  // tunic: wider at the hem, a red lining at the bottom edge
+  box(-3, 3, -3, 3, 4 + b, 6 + b, 'W', (x, y) => Math.abs(x + 0.5) > 2.5 && Math.abs(y + 0.5) > 2.5);
+  box(-3, 3, -3, 3, 4 + b, 5 + b, (x, y) => (x === 2 || y === 2) && (x + y) % 2 === 0 ? 'r' : 'W', (x, y) => Math.abs(x + 0.5) > 2.5 && Math.abs(y + 0.5) > 2.5);
+  box(-2, 2, -2, 2, 6 + b, 10 + b, 'W');
+  // arms: the back arm hangs, the front arm hangs or waves
+  box(-1, 1, -3, -2, 6 + b, 9 + b, 'w');
+  if (fr.wave === 0) box(0, 1, 2, 3, 6 + b, 9 + b, 'W');
+  else {                                                    // waving: the arm comes out in front of the helmet, hand high
+    box(0, 1, 2, 4, 8 + b, 10 + b, 'W'); box(fr.wave === 1 ? 1 : 0, fr.wave === 1 ? 2 : 1, 4, 5, 10 + b, 15 + b, 'W'); set(fr.wave === 1 ? 2 : -1, 4, 15 + b, 'w');
+  }
+  // scarf: a collar ring with a highlight, and a tail streaming behind (-X), waving
+  box(-3, 3, -3, 3, 10 + b, 12 + b, (x, y, z) => z === 11 + b && (x + y) % 3 === 0 ? 'H' : 'R', (x, y) => Math.abs(x + 0.5) < 1.6 && Math.abs(y + 0.5) < 1.6);
+  for (let c = 1; c <= 9; c++) {
+    const x = -3 - c;
+    const zc = 10 + b - Math.round(c * 0.35) + Math.round(Math.sin(c * 0.8 - fr.tail * Math.PI / 2) * (0.4 + c * 0.12));
+    const yc = Math.round(Math.sin(c * 0.6 - fr.tail * Math.PI / 2 + 1) * 0.8);
+    const th = c < 4 ? 2 : 1;
+    for (let q = 0; q < th; q++) { set(x, yc, zc + q, q === th - 1 ? 'R' : 'r'); set(x, yc - 1, zc + q, 'r'); }
+    if (c === 9) { set(x - 1, yc, zc + 1, 'R'); set(x - 1, yc - 1, zc - 1, 'r'); }
+  }
+  // helmet: a rounded box with a seam, a black visor on the +X face (on the +Y face when glancing at the viewer)
+  box(-4, 4, -4, 4, 12 + b, 19 + b, (x, y, z) => (z === 18 + b ? 'W' : x === -4 || y === -4 ? 'w' : 'W'),
+    (x, y, z) => (Math.abs(x + 0.5) > 3 && Math.abs(y + 0.5) > 3) || ((z === 12 + b || z === 18 + b) && (Math.abs(x + 0.5) > 3 || Math.abs(y + 0.5) > 3)));
+  if (!fr.look) { box(4, 5, -1, 3, 14 + b, 17 + b, 'K'); set(4, 2, 16 + b, 'L'); }
+  else { box(0, 4, 4, 5, 14 + b, 17 + b, 'K'); set(3, 4, 16 + b, 'L'); }
+  return v;
+}
+const EXP_COL = { W: [0.97, 0.95, 0.91], w: [0.86, 0.83, 0.77], B: [0.17, 0.15, 0.14], K: [0.03, 0.03, 0.03], L: [0.45, 0.45, 0.45],
+  R: [0.89, 0.15, 0.17], r: [0.62, 0.08, 0.1], H: [1.0, 0.36, 0.29] };
+function explorerMesh(fr) {
+  const e = 1.25, vox = explorerVoxels(fr), ps = [], cs = [], c3 = new THREE.Color();
+  const has = (x, y, z) => vox.has(x + ',' + y + ',' + z);
+  const ox = EXPLORER_AT[0], oy = EXPLORER_AT[1], oz = EXPLORER_AT[2];
+  const quad = (col, m, q) => {
+    c3.setRGB(Math.min(1, col[0] * m), Math.min(1, col[1] * m), Math.min(1, col[2] * m), THREE.SRGBColorSpace);
+    for (const n of [0, 1, 2, 0, 2, 3]) { const [X, Y, Z] = q[n]; ps.push(ox + X * e, oz + Z * e, oy + Y * e); cs.push(c3.r, c3.g, c3.b); }
+  };
+  for (const [key, ch] of vox) {
+    const [x, y, z] = key.split(',').map(Number), col = EXP_COL[ch];
+    const n = 0.97 + 0.06 * hash3(x, y, z, 501);                 // a faint pixel grain
+    // red rim light from the sculpture's glow on the faces looking left (-X) and the edges
+    if (!has(x, y, z + 1)) quad(col, 1.0 * n, [[x, y, z + 1], [x + 1, y, z + 1], [x + 1, y + 1, z + 1], [x, y + 1, z + 1]]);
+    if (!has(x, y + 1, z)) quad(col, (ch === 'W' || ch === 'w') && !has(x - 1, y, z) ? 0.84 * n : 0.88 * n, [[x, y + 1, z], [x + 1, y + 1, z], [x + 1, y + 1, z + 1], [x, y + 1, z + 1]]);
+    if (!has(x + 1, y, z)) quad(col, 0.72 * n, [[x + 1, y, z], [x + 1, y + 1, z], [x + 1, y + 1, z + 1], [x + 1, y, z + 1]]);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(ps, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(cs, 3));
+  return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+}
+{
+  // frames: 0-7 idle (scarf in 4 phases, breathing), 8-11 wave, 12-13 glance
+  const FR = [];
+  for (let n = 0; n < 8; n++) FR.push({ tail: n % 4, bob: n >= 4 ? 1 : 0, wave: 0, look: 0 });
+  for (let n = 0; n < 4; n++) FR.push({ tail: n % 4, bob: 0, wave: 1 + (n % 2), look: 0 });
+  for (let n = 0; n < 2; n++) FR.push({ tail: n * 2, bob: 0, wave: 0, look: 1 });
+  // crop box around him (in output pixels)
+  let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
+  for (const dx of [-17, 9]) for (const dy of [-8, 8]) for (const dz of [-1, 26]) {
+    const p = window.__project(EXPLORER_AT[0] + dx, EXPLORER_AT[1] + dy, EXPLORER_AT[2] + dz);
+    bx0 = Math.min(bx0, p[0]); by0 = Math.min(by0, p[1]); bx1 = Math.max(bx1, p[0]); by1 = Math.max(by1, p[1]);
+  }
+  bx0 = Math.floor(bx0); by0 = Math.floor(by0); const fw = Math.ceil(bx1) - bx0, fh = Math.ceil(by1) - by0;
+  const r2 = new THREE.WebGLRenderer({ antialias: false, alpha: true, preserveDrawingBuffer: true });
+  r2.setPixelRatio(1); r2.setSize(W, H, false); r2.setClearColor(0x000000, 0);
+  const sheet = document.createElement('canvas'); sheet.width = fw * FR.length; sheet.height = fh;
+  const sctx = sheet.getContext('2d');
+  FR.forEach((fr, n) => {
+    const sc = new THREE.Scene(); sc.add(explorerMesh(fr));
+    r2.render(sc, camera);
+    sctx.drawImage(r2.domElement, bx0, by0, fw, fh, n * fw, 0, fw, fh);
+  });
+  window.__explorerSheet = sheet;
+  window.__explorerFrames = { count: FR.length, x: bx0 / W, y: by0 / H, w: fw / W, h: fh / H };
 }
 
 window.__sculptureSize = [W, H];
