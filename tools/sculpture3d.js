@@ -51,13 +51,12 @@ const G = 3.75;                                    // finest letter cell; aligne
 const BODY_Y1 = 45;                                // front plane of the letter
 const JF = BODY_Y1 / G;                            // cells through the depth of the bowl
 // Measured from the reference on a fine grid, in units of the stem's width (2 cubes = 30):
-const STEM = { x0: 30, x1: 60, h: 105, y0: 15 };  // 2 big cubes wide, 2 deep, 7 tall
-const BOWL = { x0: 45, x1: 120, h: 60, rTop: 30, rBot: 0, y0: 15 };    // 2 big cubes deep and 4 tall: the right end is two big cubes thick, the curve carved from them
-const DOOR = { x0: 60, x1: 90, zRect: 33.75, cx: 75, r: 15, recessY: 30 };   // starts at the stem's front corner; deep recess so the red inner wall shows   // narrow arch starting just right of the stem, 11.25 deep
-const LANDING_Z = 52.5;                            // the landing against the stem where the explorer stands
-const STAIR_Y1 = 60;                               // the stair block stands one cube proud of the b's face
+const STEM = { x0: 30, x1: 60, h: 120, y0: 15 };  // 2 big cubes wide, 2 deep, 8 tall
+const BOWL = { x0: 45, x1: 135, h: 75, rTop: 37.5, rBot: 0, y0: 15 };   // 2 big cubes deep, 5 tall; the right wall (x 105..135) is two big cubes; big rounded top-right corner
+const DOOR = { x0: 67.5, x1: 105, zRect: 37.5, cx: 86.25, r: 18.75, recessY: 26.25 };   // a big arched gate (37.5 wide, 56 tall), recessed 18.75 so its glowing inside shows
+const LANDING_Z = 60;                              // the landing against the stem where the explorer stands
 const CELL = 15;                                   // island top cube; tiers below are CELL/2 and CELL/4
-const PLAT_CX = 70, PLAT_CY = 34, PLAT_AX = 74, PLAT_AY = 46;   // island footprint, centred under the b
+const PLAT_CX = 70, PLAT_CY = 36, PLAT_AX = 86, PLAT_AY = 54;   // island footprint, centred under the b and wide toward the front-left
 
 const inCircle = (x, z, cx, cz, r) => (x - cx) ** 2 + (z - cz) ** 2 <= r * r;
 const inStem = (X, Z) => X >= STEM.x0 && X < STEM.x1 && Z >= 0 && Z < STEM.h;
@@ -113,24 +112,26 @@ function buildLetter() {
   chips.forEach(([i, j, k]) => grid.delete(gk(i, j, k)));
 }
 
-// Stairs, as in the reference. A landing against the stem (x 30..45, 52.5 high) where the explorer stands, on a block one cube proud of
-// the b's face; three steps come forward toward the viewer. Then a flight of five steps (3.75 run, 7.5 rise) runs right along the wall,
-// as deep as the landing block, down to the doorstep. Everything is stacked 3.75-unit blocks, so the walls under the steps read as fine masonry.
+// Stairs, as in the reference. A landing against the stem's front-left corner (x 30..37.5, 60 high) where the explorer stands; three
+// steps drop toward the viewer from it; then a thin flight (7.5 deep) of eight steps runs right along the stem's front, down to the gate.
+// Each step is a dark stone column topped by a lit tread block, so the treads read as a crisp staircase.
 function emitStairs() {
-  const q = 3.75;
+  const q = 3.75, h = 7.5;
   let c = 0;
-  const stack = (X, Y, top) => {
-    const n = Math.round(top / q);
-    for (let k = 0; k < n; k++) {
-      const f = baseFaces();
-      f[2] = 'c' + Math.floor(hash3(c, k, 0, 250) * 4); f[0] = 'c' + Math.floor(hash3(c, k, 1, 251) * 4); f[4] = 'c' + Math.floor(hash3(c, k, 2, 252) * 4);
-      blocks.push({ X, Y, Z: k * q + q / 2, s: q, f, t: k === n - 1 ? 0.95 : 0.5 + 0.35 * hash3(c, k, 3, 253) });
-    }
-    c++;
+  const cube = (X, Y, Z, sz, t) => {
+    const f = baseFaces();
+    f[2] = 'c' + Math.floor(hash3(c, 1, 0, 250) * 4); f[0] = 'c' + Math.floor(hash3(c, 2, 0, 251) * 4); f[4] = 'c' + Math.floor(hash3(c, 3, 0, 252) * 4);
+    blocks.push({ X, Y, Z, s: sz, f, t }); c++;
   };
-  const firstFlight = [52.5, 48.75, 45, 41.25];                       // landing row, then three steps toward the viewer
-  for (let r = 0; r < 4; r++) for (let x = 0; x < 4; x++) stack(30 + q / 2 + x * q, 45 + q / 2 + r * q, firstFlight[r]);
-  for (let st = 0; st < 5; st++) for (let r = 0; r < 4; r++) stack(45 + q / 2 + st * q, 45 + q / 2 + r * q, 37.5 - st * 7.5);
+  const step = (X, Y, top, from) => {                                  // small cubes from 'from' up to the tread
+    const n = Math.round((top - from) / q);
+    for (let k = 0; k < n; k++) cube(X, Y, from + k * q + q / 2, q, k === n - 1 ? 1.1 : 0.6 + 0.3 * hash3(c, 4, 0, 253));
+  };
+  // landing block (x 30..37.5, y 45..60): solid 7.5 cubes up to 45, then the landing and three steps toward the viewer in small cubes
+  for (let yy = 0; yy < 2; yy++) for (let k = 0; k < 6; k++) cube(30 + h / 2, 45 + h / 2 + yy * h, k * h + h / 2, h, 0.6 + 0.3 * hash3(yy, k, 0, 254));
+  for (let x = 0; x < 2; x++) for (let r = 0; r < 4; r++) step(30 + q / 2 + x * q, 45 + q / 2 + r * q, [60, 56.25, 52.5, 48.75][r], 45);
+  // the flight down to the gate: eight steps, 7.5 deep
+  for (let st = 0; st < 8; st++) for (let r = 0; r < 2; r++) step(37.5 + q / 2 + st * q, 45 + q / 2 + r * q, 52.5 - st * 7.5, 0);
 }
 
 /* merge aligned groups into the island's three tiers: 15-unit cubes (4x4x4 cells) where a full group fits, else 7.5-unit blocks
@@ -208,8 +209,8 @@ function emitPlatform() {
       if (rr > 1.0) continue;
       const r = hash3(ci, cj, 0, 2);
       const ring = rr > 0.8;
-      const flat = cj >= 0 && cj <= 3 && x > -30 && x < 135;                  // keeps its height: under the letter, the stairs and the doorstep
-      const under = cj >= 1 && cj <= 2 && x > 30 && x < 105;                       // hidden under the letter: no checker
+      const flat = cj >= 0 && cj <= 3 && x > -30 && x < 150;                  // keeps its height: under the letter, the stairs and the doorstep
+      const under = cj >= 1 && cj <= 2 && x > 30 && x < 135;                       // hidden under the letter: no checker
       let top = 0;
       if (ring && !flat) top = r < 0.28 ? -CELL / 2 : r > 0.72 ? CELL / 2 : 0;  // uneven rim: cubes stand at three heights
       const D = bowlDepth(x, y) * (0.96 + 0.08 * hash3(ci, cj, 1, 4));
@@ -247,8 +248,8 @@ function emitPlatform() {
         const z2 = z1 - len2 * h2;
         for (let c = 0; c < 2; c++) for (let d = 0; d < 2; d++) {
           const xt = xs - q4 / 2 + c * q4, yt = ys - q4 / 2 + d * q4, h3 = hh * 13 + c * 3 + d;
-          const D3 = bowlDepth(xt, yt) * (0.85 + 0.3 * hash3(h3, 0, 0, 241)) - drop1 - len2 * h2;
-          const len3 = Math.min(7, Math.max(0, Math.round(1.0 * D3 / q4)));
+          const D3 = bowlDepth(xt, yt) * (0.6 + 0.8 * hash3(h3, 0, 0, 241)) - drop1 - len2 * h2;
+          const len3 = Math.min(9, Math.max(0, Math.round(D3 / q4) + (hash3(h3, 1, 0, 242) < 0.25 ? 2 : 0)));   // ragged: some columns hang on as stalactites
           for (let q = 0; q < len3; q++) {
             const Z = z2 - q4 / 2 - q * q4;
             blocks.push({ X: xt, Y: yt, Z, s: q4, f: tierFaces(h3 * 5 + q), t: tintOf(h3, q, 3, Z) });
@@ -327,8 +328,9 @@ function material(token, n) {
     m = new THREE.MeshStandardMaterial({ map: makeTexture('c', v, n), roughness: 0.62, metalness: 0 });
   } else {
     // doorway interior: light-emitting surfaces (the doorway is the glowing source in the scene)
+    // the gate's inside glows: a smooth, bright red with only a faint trace of the stone grain
     const t = makeTexture('c', v, n);
-    m = new THREE.MeshStandardMaterial({ map: t, color: 0xff2a1e, roughness: 0.7, emissive: 0xff1a12, emissiveMap: t, emissiveIntensity: v === 0 ? 1.7 : 1.0 });
+    m = new THREE.MeshStandardMaterial({ map: t, color: 0x3a0806, roughness: 0.9, emissive: v === 0 ? 0xff2416 : 0xe01810, emissiveIntensity: v === 0 ? 1.0 : 0.75 });
   }
   matCache.set(key, m);
   return m;
@@ -388,56 +390,89 @@ for (const [, list] of groups) {
   scene.add(plate);
 }
 
+/* ---------- the gate's light: smooth glowing panels on the recess's back wall and floor, brightest low and in the middle ---------- */
+{
+  const tex = (() => {
+    const c = document.createElement('canvas'); c.width = 64; c.height = 128;
+    const g = c.getContext('2d');
+    const gr = g.createRadialGradient(32, 118, 4, 32, 96, 110);
+    gr.addColorStop(0, '#ff7a52'); gr.addColorStop(0.35, '#ff3420'); gr.addColorStop(1, '#c4140e');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 128);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  })();
+  const arch = new THREE.Shape();
+  const w = DOOR.x1 - DOOR.x0, top = DOOR.zRect;
+  arch.moveTo(-w / 2, 0); arch.lineTo(w / 2, 0); arch.lineTo(w / 2, top);
+  arch.absarc(0, top, w / 2, 0, Math.PI, false); arch.lineTo(-w / 2, 0);
+  const ag = new THREE.ShapeGeometry(arch, 24);
+  // map UVs to the shape's bounds
+  const pos = ag.attributes.position, uv = ag.attributes.uv, H = top + w / 2;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / w + 0.5, pos.getY(i) / H);
+  const back = new THREE.Mesh(ag, new THREE.MeshBasicMaterial({ map: tex }));
+  back.position.set(DOOR.cx, 0, DOOR.recessY + 0.15);                  // scene (X, Y, Z) -> three (x, z, y)
+  scene.add(back);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, BODY_Y1 - DOOR.recessY + 7.5), new THREE.MeshBasicMaterial({ color: 0xff4a2c }));
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(DOOR.cx, 0.12, (DOOR.recessY + BODY_Y1 + 7.5) / 2);
+  scene.add(floor);
+  // the recess's inner left wall glows too (seen through the opening)
+  const side = new THREE.Mesh(new THREE.PlaneGeometry(BODY_Y1 - DOOR.recessY, DOOR.zRect + DOOR.r * 0.7), new THREE.MeshBasicMaterial({ color: 0xd8180f }));
+  side.rotation.y = Math.PI / 2;
+  side.position.set(DOOR.x0 + 0.15, (DOOR.zRect + DOOR.r * 0.7) / 2, (DOOR.recessY + BODY_Y1) / 2);
+  scene.add(side);
+}
+
 /* ---------- explorer (self-lit ivory so the red light does not tint him) ---------- */
 (function explorer() {
+  // The explorer from the reference: a chibi figure with a big round white helmet and a black visor, a small white body, short arms and
+  // legs mid-stride, and a red scarf whose long tail streams out behind him. Self-lit ivory so the red light does not tint him.
   const g = new THREE.Group();
-  // bright ivory, self-lit so the red light does not tint him; a darker twin gives the form some shading
-  const ivory = new THREE.MeshStandardMaterial({ color: 0xa09b90, roughness: 0.55, emissive: 0xf6f1e6, emissiveIntensity: 0.78 });
-  const ivoryShade = new THREE.MeshStandardMaterial({ color: 0x77736a, roughness: 0.7, emissive: 0xd8d1c2, emissiveIntensity: 0.6 });
-  const red = new THREE.MeshStandardMaterial({ color: 0xe5262b, roughness: 0.7, emissive: 0xd01c20, emissiveIntensity: 0.6, side: THREE.DoubleSide });
-  const redDark = new THREE.MeshStandardMaterial({ color: 0x8a1014, roughness: 0.8, emissive: 0x6a0a0e, emissiveIntensity: 0.6, side: THREE.DoubleSide });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x0b0b0a, roughness: 0.4 });
+  const ivory = new THREE.MeshStandardMaterial({ color: 0xb0aba0, roughness: 0.5, emissive: 0xf6f1e6, emissiveIntensity: 0.8 });
+  const shade = new THREE.MeshStandardMaterial({ color: 0x8a857b, roughness: 0.6, emissive: 0xcdc6b7, emissiveIntensity: 0.62 });
+  const red = new THREE.MeshStandardMaterial({ color: 0xe5262b, roughness: 0.6, emissive: 0xd81c20, emissiveIntensity: 0.7, side: THREE.DoubleSide });
+  const redDark = new THREE.MeshStandardMaterial({ color: 0x8a1014, roughness: 0.8, emissive: 0x7a0c10, emissiveIntensity: 0.7, side: THREE.DoubleSide });
+  const black = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.25, metalness: 0.2 });
   const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => {
     const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz);
-    m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+    m.castShadow = true; g.add(m); return m;
   };
-  // short legs and small feet
-  add(new THREE.CapsuleGeometry(0.9, 2.0, 4, 10), ivoryShade, -0.4, 2.2, -1.4);
-  add(new THREE.CapsuleGeometry(0.9, 2.0, 4, 10), ivory, 0.9, 2.2, 1.4);
-  add(new THREE.SphereGeometry(1.0, 12, 8), ivoryShade, 0.1, 0.5, -1.4).scale.set(1.3, 0.55, 0.9);
-  add(new THREE.SphereGeometry(1.0, 12, 8), ivory, 1.5, 0.5, 1.4).scale.set(1.3, 0.55, 0.9);
-  // bell-shaped tunic with a red lining at the hem
-  add(new THREE.CylinderGeometry(2.1, 3.5, 6.8, 20), ivory, 0.3, 7.0, 0);
-  add(new THREE.CylinderGeometry(3.4, 3.4, 0.45, 20), red, 0.3, 3.9, 0).scale.set(0.96, 1, 0.96);
-  // arms: one reaching toward the stairs, one tucked back
-  add(new THREE.CapsuleGeometry(0.7, 2.8, 4, 8), ivory, 2.4, 7.6, 2.5, 0.4, 0, -0.95);
-  add(new THREE.CapsuleGeometry(0.65, 2.4, 4, 8), ivoryShade, 1.2, 7.9, -2.5, -0.2, 0, -0.3);
-  // large rounded head with a dark visor on the side facing the stairs
-  add(new RoundedBoxGeometry(6.8, 6.4, 6.6, 4, 2.7), ivory, 0.7, 13.2, 0);
-  add(new THREE.BoxGeometry(0.5, 2.5, 2.4), dark, 4.15, 13.5, 0.9);
-  // scarf: collar, a short knot, and a notched tail trailing left
-  add(new THREE.TorusGeometry(2.7, 0.7, 8, 24), red, 0.5, 10.1, 0, Math.PI / 2, 0, 0).scale.set(1, 1, 0.92);
+  // legs mid-stride and rounded boots
+  add(new THREE.CapsuleGeometry(0.75, 2.2, 4, 10), shade, -0.7, 2.0, -0.9, 0, 0, 0.28);
+  add(new THREE.CapsuleGeometry(0.75, 2.2, 4, 10), ivory, 0.9, 2.0, 0.9, 0, 0, -0.32);
+  add(new THREE.SphereGeometry(0.95, 12, 8), shade, -1.3, 0.55, -0.9).scale.set(1.35, 0.6, 0.95);
+  add(new THREE.SphereGeometry(0.95, 12, 8), ivory, 1.6, 0.55, 0.9).scale.set(1.35, 0.6, 0.95);
+  // body: a short rounded torso
+  add(new THREE.CapsuleGeometry(2.45, 1.9, 6, 16), ivory, 0, 6.3, 0).scale.set(1, 1, 0.9);
+  // arms swinging
+  add(new THREE.CapsuleGeometry(0.7, 2.4, 4, 8), ivory, 1.9, 6.4, 2.7, 0.6, 0, -0.75);
+  add(new THREE.CapsuleGeometry(0.68, 2.2, 4, 8), shade, -1.7, 6.5, -2.6, -0.5, 0, 0.65);
+  // big round helmet with a black visor facing the viewer's right
+  add(new THREE.SphereGeometry(4.0, 28, 20), ivory, 0.2, 12.4, 0).scale.set(1, 0.98, 0.98);
+  add(new RoundedBoxGeometry(1.4, 2.8, 2.6, 2, 0.5), black, 3.75, 12.6, 1.0, 0, 0.45, 0);
+  // scarf: a collar and a long notched tail streaming behind
+  add(new THREE.TorusGeometry(2.25, 0.75, 8, 24), red, 0.1, 8.7, 0, Math.PI / 2, 0, 0);
   const tail = new THREE.Shape();
-  tail.moveTo(0, 0.5); tail.lineTo(-4.8, 2.9); tail.lineTo(-11.0, 4.9); tail.lineTo(-9.2, 2.8); tail.lineTo(-12.0, 1.7);
-  tail.lineTo(-8.8, 0.2); tail.lineTo(-4.4, -2.2); tail.lineTo(0, -2.8); tail.closePath();
-  add(new THREE.ExtrudeGeometry(tail, { depth: 0.45, bevelEnabled: false }), red, -1.2, 10.5, -0.2, 0, 0.15, 0);
-  add(new THREE.ExtrudeGeometry(tail, { depth: 0.3, bevelEnabled: false }), redDark, -1.0, 9.9, -0.9, 0, 0.35, 0.05).scale.set(0.7, 0.6, 1);
-  g.scale.setScalar(0.95);
-  g.position.set(37.5, LANDING_Z, 47);
+  tail.moveTo(0, 0.6); tail.lineTo(-5, 2.0); tail.lineTo(-11.5, 2.4); tail.lineTo(-9.6, 0.9); tail.lineTo(-12.4, -0.6);
+  tail.lineTo(-8.6, -1.0); tail.lineTo(-4.4, -1.6); tail.lineTo(0, -1.4); tail.closePath();
+  add(new THREE.ExtrudeGeometry(tail, { depth: 0.4, bevelEnabled: false }), red, -1.4, 8.9, -0.4, 0, 0.35, -0.05);
+  add(new THREE.ExtrudeGeometry(tail, { depth: 0.3, bevelEnabled: false }), redDark, -1.2, 8.3, -1.2, 0, 0.55, 0.08).scale.set(0.75, 0.7, 1);
+  g.scale.setScalar(0.92);
+  g.rotation.y = 0.15;
+  g.position.set(33.75, LANDING_Z, 50);
   scene.add(g);
 })();
 
 /* ---------- lights: red is the main light; the white fill is almost nothing ---------- */
-scene.add(new THREE.AmbientLight(0xffffff, 0.075));
+scene.add(new THREE.AmbientLight(0xffffff, 0.12));
 scene.add(new THREE.HemisphereLight(0xb8b4c0, 0x120c0c, 0.1));
-const fill = new THREE.DirectionalLight(0xc8ccd8, 0.26);              // keeps the left faces a touch lighter than the right
+const fill = new THREE.DirectionalLight(0xc8ccd8, 0.5);              // keeps the left faces a touch lighter than the right
 fill.position.set(-80, 70, 160);
 scene.add(fill);
 
 // The red key: a spotlight high up, left and slightly in front. Its soft cone makes a pool of light that is
 // brightest over the b and falls off toward the island's rim and the cone below; it casts the shadows.
 const key = new THREE.SpotLight(0xff2a1c, 15, 0, 0.62, 1.0, 0);
-key.position.set(-45, 280, 6);
+key.position.set(-45, 280, 26);
 key.target.position.set(66, 40, 20);
 key.castShadow = true;
 key.shadow.mapSize.set(4096, 4096);
@@ -446,10 +481,14 @@ key.shadow.bias = -0.0004; key.shadow.normalBias = 0.35; key.shadow.radius = 3;
 scene.add(key, key.target);
 
 const doorInner = new THREE.PointLight(0xff2a1e, 420, 70, 2);         // glow inside the recess
-doorInner.position.set(DOOR.cx, 22, 39);
-const doorMouth = new THREE.PointLight(0xff2418, 520, 38, 2);         // spill onto the floor, doorstep and nearby steps only
-doorMouth.position.set(DOOR.cx, 12, 54);
+doorInner.position.set(DOOR.cx, 24, 34);
+const doorMouth = new THREE.PointLight(0xff2418, 900, 45, 2);         // spill onto the floor, doorstep and nearby steps only
+doorMouth.position.set(DOOR.cx, 10, 50);
 scene.add(doorInner, doorMouth);
+
+const stairLight = new THREE.PointLight(0xff2a1c, 420, 46, 2);       // straight above the stairs: the treads glow, the risers stay dark
+stairLight.position.set(46, 92, 52);
+scene.add(stairLight);
 
 const edgeLight = (X, Y, Z, intensity, dist) => {
   const l = new THREE.PointLight(0xff2418, intensity, dist, 2);
@@ -463,10 +502,11 @@ const stripLight = (X, Y, Z, w, h, face, intensity) => {                  // sce
   l.lookAt(face === 'front' ? X : X - 1, Z, face === 'front' ? Y - 1 : Y);   // RectAreaLight emits away from the lookAt target
   scene.add(l);
 };
-stripLight(28, 46, 75, 4, 45, 'front', 8);                                // left edge of the stem above the landing
-stripLight(118, 46, 30, 4, 60, 'front', 8);                               // front edge at the right end of the bowl
-stripLight(122, 30, 30, 4, 60, 'right', 3);                               // right end face, along its front edge
-edgeLight(67, 92, -70, 160, 100);                                     // low red glow under the island: the cone's tips catch it
+stripLight(29, 46, 97.5, 2, 45, 'front', 4);                                // left edge of the stem above the landing
+stripLight(133, 46, 37.5, 4, 75, 'front', 5);                               // front edge at the right end of the bowl
+stripLight(137, 30, 37.5, 4, 75, 'right', 3);                               // right end face, along its front edge
+edgeLight(67, 100, -55, 260, 110);
+edgeLight(20, 90, -40, 140, 70);                                     // low red glow under the island: the cone's tips catch it
 edgeLight(160, 80, -45, 90, 60);
 edgeLight(-45, 70, -40, 80, 55);
 
