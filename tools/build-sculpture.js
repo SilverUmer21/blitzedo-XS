@@ -45,6 +45,8 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/ja
   await page.waitForFunction('window.__sculptureReady === true', null, { timeout: 280000 });
   const size = await page.evaluate('window.__sculptureSize');
   console.log('scene', JSON.stringify(await page.evaluate('window.__sculptureStats')));
+  const anchor = await page.evaluate('window.__anchor');
+  if (anchor) { fs.writeFileSync(path.join(__dirname, '..', 'assets', 'sculpture.json'), JSON.stringify({ explorer: anchor }, null, 2) + '\n'); console.log('anchor', JSON.stringify(anchor)); }
   if (process.env.PROBE) console.log('probe', JSON.stringify(await page.evaluate(`(${process.env.PROBE}).map((p) => window.__project(...p))`)));
 
   const assets = path.join(__dirname, '..', 'assets');

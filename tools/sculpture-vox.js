@@ -63,7 +63,7 @@ function fillBox(x0, x1, y0, y1, z0, z1, k, b) {  // units; cells whose centres 
 
 /* ---------- the b ---------- */
 const STEM = { x0: 30, x1: 60, y0: 15, y1: 45, h: 120 };
-const BOWL = { x0: 45, x1: 135, y0: 15, y1: 45, h: 75, rTop: 45, rBot: 30 };   // a D: rounded top and bottom of the right end
+const BOWL = { x0: 45, x1: 135, y0: 15, y1: 45, h: 75, rTop: 40, rBot: 35 };   // a D: rounded top and bottom of the right end
 const DOOR = { x0: 75, x1: 105, zRect: 37.5, cx: 90, r: 15, recessY: 30 };   // arched gate, recessed one big block
 const inCircle = (x, z, ox, oz, r) => (x - ox) ** 2 + (z - oz) ** 2 <= r * r;
 function inBowl(X, Z) {
@@ -104,15 +104,16 @@ function buildLetter() {
 // stem's front from the tower down to the gate's threshold. Steps are 5 run / 5 rise (two voxels).
 const STEP = 7.5;                                 // chunky steps: 3 voxels run and rise, like the reference
 const MID_Z = 52.5, TOP_Z = 75;
-const SMALL_DOOR = { x0: 30, x1: 37.5, y0: 37.5, y1: 45, z0: TOP_Z, zRect: 85, r: 3.75 };
+const SMALL_DOOR = { x0: 30, x1: 37.5, y0: 37.5, y1: 45, z0: 70, zRect: 80, r: 3.75 };
+const EXPLORER_AT = [20, 38, 70];
 function buildStairs() {
-  // top landing at the stem's front-left corner (where the explorer stands); three steps come down toward the viewer onto the
-  // tower; from the tower a long flight runs right along the stem's front down to the gate step. Each step is one big block deep.
-  fillBox(10, 30, 30, 45, 0, TOP_Z, KIND.TOWER, newBlock(true));                                    // top landing (explorer)
-  fillBox(10, 30, 45, 60, 0, MID_Z, KIND.TOWER, newBlock(true));                                    // the tower: mid landing
-  fillBox(10, 30, 45, 50, 0, TOP_Z - STEP, KIND.STAIR, newBlock(true));                             // two steps down onto the tower
-  fillBox(10, 30, 50, 55, 0, TOP_Z - 2 * STEP, KIND.STAIR, newBlock(true));
-  for (let s = 0; s < 6; s++) fillBox(30 + STEP * s, 30 + STEP * (s + 1), 45, 60, 0, MID_Z - STEP * (s + 1), KIND.STAIR, newBlock(true));
+  // as in the reference: the explorer's landing at the stem's front-left corner; two steps down onto the tower; then a long flight of
+  // nine small steps (5 run, 5 rise) running right along the stem's front, down to the gate step. One big block deep.
+  fillBox(10, 30, 30, 45, 0, 70, KIND.TOWER, newBlock(true));                                       // top landing (explorer)
+  fillBox(10, 30, 45, 60, 0, 50, KIND.TOWER, newBlock(true));                                       // the tower
+  fillBox(10, 30, 45, 52.5, 0, 63.75, KIND.STAIR, newBlock(true));                                  // two steps down onto the tower
+  fillBox(10, 30, 52.5, 60, 0, 57.5, KIND.STAIR, newBlock(true));
+  for (let s = 0; s < 9; s++) fillBox(30 + 5 * s, 35 + 5 * s, 45, 60, 0, 50 - 5 * (s + 1), KIND.STAIR, newBlock(true));
   // the gate's step: red tiles from the gate along the bowl's front, then curving in under the bowl's rounded bottom ending
   const stepBlock = newBlock(true);
   for (let i = vi(65); i < vi(137.5); i++) for (let j = vj(15); j < vj(57.5); j++) {
@@ -139,7 +140,7 @@ function buildIsland() {
   for (let ci = -8; ci <= 14; ci++) for (let cj = -6; cj <= 10; cj++) {
     const x = ci * CELL + CELL / 2, y = cj * CELL + CELL / 2;
     const rr = rOf(x, y);
-    if (rr > 1) continue;
+    if (rr > 1 || x > 145) continue;                                         // the bowl sits near the island's right edge
     const r = hash3(ci, cj, 0, 2);
     const covered = underLetter(x, y);
     const rim = rr > 0.78 && !covered;
@@ -281,6 +282,8 @@ function faceColour(i, j, k, f) {
       red = ((hi + hj) & 1) === (hash3(hi, hj, hk, 11) < 0.2 ? 1 : 0);
     } else red = !!(blk && blk.redTop);
     if (kd === KIND.STAIR || kd === KIND.TOWER) red = true;
+  } else if (exposedAbove && kd === KIND.STAIR && f === 1) {
+    red = true;                                               // the tread's red front edge, one pixel
   } else if (exposedAbove && (kd === KIND.LETTER ? (((Math.floor(cx(i) / 15) + Math.floor(cy(j) / 15)) & 1) === (hash3(Math.floor(cx(i) / 15), Math.floor(cy(j) / 15), Math.floor(cz(k) / 15), 11) < 0.2 ? 1 : 0)) : blk && blk.redTop) && (kd === KIND.LOOSE || kd === KIND.ISLAND || kd === KIND.LETTER || kd === KIND.TOWER)) {
     red = hash3(i, j, k, 31 + f) < (kd === KIND.LETTER ? 0 : kd === KIND.TOWER ? 0 : 0.25);   // the red top wraps one voxel down the sides (a lit lip)
   }
@@ -377,42 +380,7 @@ scene.add(new THREE.AmbientLight(0xffffff, 1.0));                 // only the ex
 
 /* ---------- explorer ---------- */
 const LANDING_Z = TOP_Z;
-(function explorer() {
-  // The explorer from the reference: a chibi figure with a big round white helmet and a black visor, a small white body, short arms and
-  // legs mid-stride, and a red scarf whose long tail streams out behind him. Self-lit ivory so the red light does not tint him.
-  const g = new THREE.Group();
-  const ivory = new THREE.MeshStandardMaterial({ color: 0xb0aba0, roughness: 0.5, emissive: 0xf6f1e6, emissiveIntensity: 0.8 });
-  const shade = new THREE.MeshStandardMaterial({ color: 0x8a857b, roughness: 0.6, emissive: 0xcdc6b7, emissiveIntensity: 0.62 });
-  const red = new THREE.MeshStandardMaterial({ color: 0xe5262b, roughness: 0.6, emissive: 0xd81c20, emissiveIntensity: 0.7, side: THREE.DoubleSide });
-  const redDark = new THREE.MeshStandardMaterial({ color: 0x8a1014, roughness: 0.8, emissive: 0x7a0c10, emissiveIntensity: 0.7, side: THREE.DoubleSide });
-  const black = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.25, metalness: 0.2 });
-  const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => {
-    const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz);
-    m.castShadow = true; g.add(m); return m;
-  };
-  // legs mid-stride and boots
-  add(new THREE.BoxGeometry(1.7, 3.6, 1.8), shade, -0.8, 1.9, -1.0, 0, 0, 0.18);
-  add(new THREE.BoxGeometry(1.7, 3.6, 1.8), ivory, 0.9, 1.9, 1.0, 0, 0, -0.22);
-  // body: a white tunic, wider at the hem
-  add(new THREE.CylinderGeometry(2.3, 3.0, 5.2, 12), ivory, 0, 6.2, 0);
-  // arms
-  add(new THREE.BoxGeometry(1.3, 3.8, 1.4), ivory, 2.6, 6.2, 1.8, 0.35, 0, -0.45);
-  add(new THREE.BoxGeometry(1.3, 3.6, 1.4), shade, -2.4, 6.3, -1.6, -0.3, 0, 0.4);
-  // helmet: a rounded box about as wide as the shoulders, black visor on the viewer's side
-  add(new RoundedBoxGeometry(5.8, 5.4, 5.8, 3, 1.8), ivory, 0.2, 11.4, 0);
-  add(new RoundedBoxGeometry(0.8, 2.2, 2.6, 2, 0.3), black, 3.05, 11.6, 0.9, 0, 0.15, 0);
-  // scarf: a collar and a long notched tail streaming behind
-  add(new THREE.TorusGeometry(2.3, 0.7, 8, 24), red, 0.1, 8.75, 0, Math.PI / 2, 0, 0);
-  const tail = new THREE.Shape();
-  tail.moveTo(0, 0.6); tail.lineTo(-5, 2.0); tail.lineTo(-11.5, 2.4); tail.lineTo(-9.6, 0.9); tail.lineTo(-12.4, -0.6);
-  tail.lineTo(-8.6, -1.0); tail.lineTo(-4.4, -1.6); tail.lineTo(0, -1.4); tail.closePath();
-  add(new THREE.ExtrudeGeometry(tail, { depth: 0.4, bevelEnabled: false }), red, -1.4, 8.9, -0.4, 0, 0.35, -0.05);
-  add(new THREE.ExtrudeGeometry(tail, { depth: 0.3, bevelEnabled: false }), redDark, -1.2, 8.3, -1.2, 0, 0.55, 0.08).scale.set(0.75, 0.7, 1);
-  g.scale.setScalar(1.3);
-  g.rotation.y = -0.4;                                                     // facing right, down the flight toward the gate
-  g.position.set(20, LANDING_Z, 38);
-  scene.add(g);
-})();
+// The explorer is a separate animated pixel-art sprite on the page (js/explorer.js); window.__anchor marks where he stands.
 
 
 /* ---------- camera + render ---------- */
@@ -458,4 +426,6 @@ octx.drawImage(renderer.domElement, 0, 0);
 window.__sculptureSize = [W, H];
 window.__sculptureCanvas = out;
 window.__sculptureStats = { faces, blocks: blocks.length };
+{ const p = window.__project(EXPLORER_AT[0], EXPLORER_AT[1], EXPLORER_AT[2]), q = window.__project(EXPLORER_AT[0], EXPLORER_AT[1], EXPLORER_AT[2] + 15);
+  window.__anchor = { x: p[0] / W, y: p[1] / H, block: (p[1] - q[1]) / H }; }   // feet position and one big block's height, as fractions of the image
 window.__sculptureReady = true;

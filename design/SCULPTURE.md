@@ -1,7 +1,7 @@
 # The b sculpture: pixel-art voxel method
 
 How the home page sculpture (`assets/sculpture.webp`) is built, and how each part is matched to the detail references in
-[`references/sculpture/`](references/sculpture/). The character (the explorer) is out of scope here.
+[`references/sculpture/`](references/sculpture/). The explorer is a separate animated pixel-art sprite (see the end).
 
 ![Texture comparison: reference left, render right](references/sculpture/compare-textures.png)
 
@@ -66,15 +66,15 @@ How the home page sculpture (`assets/sculpture.webp`) is built, and how each par
 
 ## Stairs: the path
 
-Chunky steps (7.5 run, 7.5 rise: three voxels), each one big block deep, as in the reference:
+As in the reference, one big block deep:
 
-1. **Top landing**: at the stem's front-left corner, 75 high, where the explorer stands.
+1. **Top landing**: at the stem's front-left corner, 70 high, where the explorer stands.
 2. **Short flight**: two steps come down toward the viewer onto the tower.
-3. **Tower (mid landing)**: 52.5 high at the b's front-left, with a red outline on its edges.
-4. **Long flight**: six steps run right along the stem's front, down to the gate.
+3. **Tower (mid landing)**: 50 high at the b's front-left, with a red outline on its edges.
+4. **Long flight**: nine small steps (5 run, 5 rise) run right along the stem's front, down to the gate.
 5. **Gate step**: red tiles in front of the gate, where the flight lands.
 
-Treads are red; risers are dark stone; the stairs' outer edges carry the red outline.
+Treads are red, with a one-pixel red front edge; risers are dark stone; the outer edges carry the red outline.
 
 ## Island
 
@@ -93,7 +93,7 @@ Treads are red; risers are dark stone; the stairs' outer edges carry the red out
 
 - **Stem**: 30 × 30 × 120.
 - **Bowl**: 90 long, 30 deep, 75 high. Its right end is two big blocks; its top-right curve has radius 45 and is cut
-  voxel by voxel so it reads round. Its right end is a D: rounded at the top (r45) and at the bottom (r30). The island blocks under and behind the curve are dark
+  voxel by voxel so it reads round. Its right end is a D: rounded at the top (r40) and at the bottom (r35). The island stops just past the bowl's right end. The island blocks under and behind the curve are dark
   (no red tops), so the curve reads clearly where it ends. The curved
   shoulder carries red only at its front and back edges.
 - **Gate**: 30 wide, a 37.5-high rectangle under a radius-15 arch.
@@ -114,3 +114,17 @@ Then update the `<img>` `width` and `height` in `index.html` to the printed size
 - The bowl's curve is rounder and smoother in the reference.
 - The reference's island columns are more clearly separated, with gaps between them.
 - The upper flight is partly hidden behind the tower from this camera.
+
+## The explorer (animated pixel-art sprite)
+
+`js/explorer.js` draws him as an SVG of single pixels (34 × 31 grid) over the sculpture, so he can move.
+
+- **Look**: white rounded helmet with a black visor on the side facing the stairs and a soft grey shade; a warm red rim light
+  on his left edge from the sculpture's glow; red scarf collar with a highlight; white tunic; dark boots; one-pixel dark outline.
+- **Scarf**: a solid band streaming left from the collar, three pixels thick near the neck, thinning to a notched fork, with a
+  dark outline. It flutters in four frames.
+- **Idle animation** (100 ms ticks): breathing bob; a visor glint sweeping across every 4.5 s; a glance toward the viewer every
+  8 s; a wave every 13 s and on hover. With `prefers-reduced-motion` he stays still.
+- **Placement**: the build writes where the landing sits in the render (`window.__anchor`, saved to `assets/sculpture.json`).
+  The same numbers go on the stage as `data-explorer="x y block"`, so the sprite stands on the landing at any screen size,
+  about 1.55 big blocks tall.
