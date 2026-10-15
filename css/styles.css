@@ -82,7 +82,20 @@ a { color: inherit; text-decoration: none; }
   padding: 0.1em 0;
 }
 .wordmark__svg { display: block; height: 0.8em; width: auto; overflow: visible; }
-.wm-px { animation: wm-in 0.55s steps(4, end) calc(var(--d) + 0.15s) both; }
+.wm-px {
+  animation: wm-in 0.55s steps(4, end) calc(var(--d) + 0.15s) both,
+             wm-glow 8s steps(1, end) calc(2.4s + var(--p) * 0.7s) infinite;
+}
+/* a red glow runs through the pixels, left to right, every 8 s */
+@keyframes wm-glow { 0% { fill: #FF8A66; } 2% { fill: #E8332A; } 4.5% { fill: #FF8A66; } 7% { fill: currentColor; } 100% { fill: currentColor; } }
+/* warm sparks drift up off the letters in pixel steps and fade */
+.wm-spark { opacity: 0; animation: wm-spark var(--st) steps(9, end) var(--sd) infinite; }
+@keyframes wm-spark {
+  0% { opacity: 0; transform: none; }
+  4% { opacity: 1; }
+  38% { opacity: 0; transform: translate(var(--sx), var(--sy)); }
+  100% { opacity: 0; transform: translate(var(--sx), var(--sy)); }
+}
 /* the solid copy underneath appears once the last pixel has landed */
 .wm-solid { animation: wm-solid 1.2s steps(1, end) both; }
 @keyframes wm-solid { from { opacity: 0; } to { opacity: 1; } }

@@ -23,3 +23,4 @@ Open `index.html` in a browser (no build step needed).
 - `demo.html` is a texture demo of the home page (switch between the live render, the old flat red and the pixel stone demo); it is not linked from the site.
 - The wordmark is an inline SVG (also `assets/wordmark.svg`), built from Inter Tight outlines by `tools/wordmark-glyphs.py` and `tools/wordmark-svg.py` (needs `pip install fonttools brotli`).
 - `js/island.js` draws the island live with WebGL from `assets/island.bin` (written by the build): breathing gate, sparks, a light pulse along the red edges, and blocks that burst when tapped.
+- `buttons.html` shows five demos of the Explore games button (not linked from the site).
