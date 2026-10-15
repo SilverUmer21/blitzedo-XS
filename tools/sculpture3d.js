@@ -41,28 +41,33 @@ function vnoise(x, y, z, sc, s) {
   return lerp(lerp(c00, c10, fy), lerp(c01, c11, fy), fz);
 }
 
-/* ---------- layout (units) ---------- */
-const G = 7.5;                                     // finest letter cell; aligned 2x2x2 groups merge into 15-unit cubes
-const BODY_Y1 = 30;                                // letter depth: two cubes
-const JF = BODY_Y1 / G;                            // cells through the depth of the body
-const STEM = { x0: 30, x1: 60, h: 120 };           // two cubes wide, eight tall
-const BOWL = { x0: 45, x1: 135, h: 75, rTop: 30, rBot: 15 };
-const DOOR = { x0: 75, x1: 105, zRect: 37.5, cx: 90, r: 15, recessY: 15 };   // arched opening, recessed one cube
-const LANDING_Z = 60;                              // top of the left steps, where the explorer stands
+/* ---------- layout (units) ----------
+ * Measured from the reference (a coordinate grid laid over the b): the stem is two cubes wide and a cube and a half deep,
+ * the bowl is a cube and a half deeper and runs 60 units past the stem with a big rounded top-right corner, the arched
+ * door sits one gap-width from the stem with a one-cube recess, and the stairs are one prism in front of the wall: three
+ * steps up to a small landing, then a thin ribbon of small steps down to the doorstep. The front faces of stem and bowl
+ * are flush. */
+const G = 3.75;                                    // finest letter cell; aligned groups merge into 7.5 and 15-unit cubes: the island's three tiers
+const BODY_Y1 = 45;                                // front plane of the letter: three cubes deep
+const JF = BODY_Y1 / G;                            // cells through the depth of the bowl
+const STEM = { x0: 30, x1: 60, h: 120, y0: 15 };   // 2 cubes wide, 2 deep (front flush with the bowl), 8 tall
+const BOWL = { x0: 45, x1: 120, h: 75, rTop: 45, rBot: 15 };            // 3 deep, 5 tall, 5 wide; a big rounded top-right corner
+const DOOR = { x0: 75, x1: 105, zRect: 30, cx: 90, r: 15, recessY: 30 };   // arched opening on the cube grid, recessed one cube
+const LANDING_Z = 45;                              // top of the stairs, where the explorer stands
 const CELL = 15;                                   // island top cube; tiers below are CELL/2 and CELL/4
-const PLAT_CX = 52.5, PLAT_CY = 18, PLAT_AX = 92, PLAT_AY = 54;   // island footprint: an ellipse that reads as a disc from the camera
+const PLAT_CX = 62, PLAT_CY = 26, PLAT_AX = 88, PLAT_AY = 56;   // island footprint: an ellipse that reads as a disc from the camera
+
 const inCircle = (x, z, cx, cz, r) => (x - cx) ** 2 + (z - cz) ** 2 <= r * r;
-function inLetter(X, Z) {
-  if (X >= STEM.x0 && X < STEM.x1 && Z >= 0 && Z < STEM.h) return true;
-  if (X >= BOWL.x0 && X < BOWL.x1 && Z >= 0 && Z < BOWL.h) {
-    const cxT = BOWL.x1 - BOWL.rTop, czT = BOWL.h - BOWL.rTop;
-    if (X > cxT && Z > czT && !inCircle(X, Z, cxT, czT, BOWL.rTop)) return false;
-    const cxB = BOWL.x1 - BOWL.rBot, czB = BOWL.rBot;
-    if (X > cxB && Z < czB && !inCircle(X, Z, cxB, czB, BOWL.rBot)) return false;
-    return true;
-  }
-  return false;
+const inStem = (X, Z) => X >= STEM.x0 && X < STEM.x1 && Z >= 0 && Z < STEM.h;
+function inBowl(X, Z) {
+  if (X < BOWL.x0 || X >= BOWL.x1 || Z < 0 || Z >= BOWL.h) return false;
+  const cxT = BOWL.x1 - BOWL.rTop, czT = BOWL.h - BOWL.rTop;
+  if (X > cxT && Z > czT && !inCircle(X, Z, cxT, czT, BOWL.rTop)) return false;
+  const cxB = BOWL.x1 - BOWL.rBot, czB = BOWL.rBot;
+  if (X > cxB && Z < czB && !inCircle(X, Z, cxB, czB, BOWL.rBot)) return false;
+  return true;
 }
+const inLetter = (X, Z) => inStem(X, Z) || inBowl(X, Z);
 function inDoorOpening(X, Z) {
   if (X < DOOR.x0 || X >= DOOR.x1) return false;
   if (Z < DOOR.zRect) return true;
@@ -85,36 +90,51 @@ const cen = (i) => (i + 0.5) * G;
 function buildLetter() {
   const chips = [];
   const put = (i, j, k, kind) => grid.set(gk(i, j, k), kind);
-  // main body: stem and bowl, depth two cubes
-  for (let i = STEM.x0 / G; i < BOWL.x1 / G; i++) {
-    for (let k = 0; k < STEM.h / G; k++) {
+  const putBox = (x0, x1, y0, y1, z0, z1, kind) => {                       // all cells whose centres fall inside the box (units)
+    for (let i = Math.round(x0 / G); i < Math.round(x1 / G); i++) for (let j = Math.round(y0 / G); j < Math.round(y1 / G); j++) for (let k = Math.round(z0 / G); k < Math.round(z1 / G); k++) put(i, j, k, kind);
+  };
+  // body: the bowl is 30 deep, the stem 22.5 deep, fronts flush
+  for (let i = Math.round(STEM.x0 / G); i < Math.round(BOWL.x1 / G); i++) {
+    for (let k = 0; k < Math.round(STEM.h / G); k++) {
       const X = cen(i), Z = cen(k);
       if (!inLetter(X, Z)) continue;
-      const edge = !inLetter(X - G, Z) || !inLetter(X + G, Z) || !inLetter(X, Z - G) || !inLetter(X, Z + G);
-      for (let j = 0; j < JF; j++) {
+      const j0 = inBowl(X, Z) ? 0 : Math.round(STEM.y0 / G);
+      for (let j = j0; j < JF; j++) {
         if (inDoorOpening(X, Z) && cen(j) > DOOR.recessY) continue;       // recess: one cube deep
         put(i, j, k, 'body');
-        if (edge && k > 2 && hash3(i, j, k, 41) < 0.03 && Math.abs(X - DOOR.cx) > DOOR.r + G * 2) chips.push([i, j, k]);   // weathering, never beside the arch
       }
     }
   }
-  // left block: four big steps (15 high, 15 wide) climbing to the landing, flush with the wall
-  for (let s = 0; s < 4; s++) {
-    for (let i = -4 + 2 * s; i < -2 + 2 * s; i++) for (let k = 0; k < 2 * (s + 1); k++) for (let j = 0; j < JF; j++) put(i, j, k, 'stair');
-  }
-  // landing ledge: one cube in front of the top step, where the explorer stands in view
-  for (let i = 2; i < 4; i++) for (let j = JF; j < JF + 2; j++) for (let k = 6; k < 8; k++) put(i, j, k, 'stair');
-  // ribbon of small steps down the wall from the landing to the doorway
-  for (let st = 0; st < 6; st++) {
-    const top = 7 - st;                                                      // cells (7.5 each): 52.5, 45, ... 22.5
-    for (let k = Math.max(0, top - 2); k < top; k++) put(4 + st, JF, k, 'rib');
-  }
+  // stairs: one prism in front of the wall. Left flight: four steps (7.5 wide, 15 / 22.5 / 30 / 37.5 high, 30 deep, free-standing) up to the
+  // landing (45 high, 15 wide, in front of the stem). A thin ribbon of small steps then runs down to the doorstep.
+  putBox(0, 7.5, 30, 60, 0, 15, 'stair');
+  putBox(7.5, 15, 30, 60, 0, 22.5, 'stair');
+  putBox(15, 22.5, 30, 60, 0, 30, 'stair');
+  putBox(22.5, 30, 30, 60, 0, 37.5, 'stair');
+  putBox(30, 45, 45, 60, 0, 45, 'stair');                                  // landing, in front of the stem
   // doorstep
-  for (let i = 9; i < 15; i++) put(i, JF, 0, 'step');
+  putBox(75, 105, 45, 52.5, 0, 7.5, 'step');
   chips.forEach(([i, j, k]) => grid.delete(gk(i, j, k)));
 }
 
-/* merge aligned 2x2x2 groups into 15-unit cubes, emit the rest as 7.5-unit blocks */
+// thin ribbon of small steps from the landing down to the doorway: a diagonal line of 3.75-unit cubes outside the 7.5 grid,
+// each step a tread cube with one cube under it, two deep, like the reference's thin diagonal ribbon
+function emitRibbon() {
+  const q = 3.75;
+  for (let st = 0; st < 8; st++) {
+    const X = 45 + q / 2 + st * q, top = 45 - (st + 1) * q;                   // treads at 41.25, 37.5, ... 15: the ribbon runs along the wall to the doorstep
+    for (let n = 0; n < 2; n++) {
+      for (let d = 0; d < 2; d++) {
+        const f = baseFaces();
+        f[2] = 'c' + Math.floor(hash3(st, n, d, 250) * 4); f[0] = 'c' + Math.floor(hash3(st, n, d, 251) * 4); f[4] = 'c' + Math.floor(hash3(st, n, d, 252) * 4);
+        blocks.push({ X, Y: BODY_Y1 + q / 2 + d * q, Z: top - q / 2 - n * q, s: q, f, t: n === 0 ? 0.95 : 0.5 });
+      }
+    }
+  }
+}
+
+/* merge aligned groups into the island's three tiers: 15-unit cubes (4x4x4 cells) where a full group fits, else 7.5-unit blocks
+   (2x2x2), else 3.75-unit blocks. Flat runs become big cubes; the bowl's curve and the arch fall to the small blocks. */
 function emitLetter() {
   const done = new Set();
   const emit = (i, j, k, n) => {              // cube covering cells [i,i+n) x [j,j+n) x [k,k+n)
@@ -134,33 +154,34 @@ function emitLetter() {
     }
     // top
     if (anyCell((a, b) => !has(i + a, j + b, k + n))) f[2] = hid(0, 0, 1);
-    // tint: random per cube, darker in tight corners
+    // tint: darker in tight corners; a share of the blocks are near-black stone so the tops alternate red and black
     let occ = 0;
     for (let a = -1; a <= n; a++) for (let b = -1; b <= n; b++) for (let c = -1; c <= n; c++) if (has(i + a, j + b, k + c) && (a < 0 || b < 0 || c < 0 || a >= n || b >= n || c >= n)) occ++;
     const faceCells = 6 * n * n + 12 * n + 8;
     const ao = 1 - Math.max(0, occ / faceCells - 0.5);
     const kind = kindAt(i, j, k);
-    const shoulder = n === 1 && kind === 'body' && X > BOWL.x1 - BOWL.rTop && Z > BOWL.h - BOWL.rTop - 6;
-    const pDark = shoulder ? 0.4 : kind === 'stair' || kind === 'rib' || kind === 'step' ? 0 : 0.28;     // step treads are always red-lit
-    blocks.push({ X, Y, Z, s, f, t: (hash3(i, j, k, 303) < pDark ? 0.04 : 0.5 + 0.8 * hash3(i, j, k, 300)) * Math.max(0.4, ao) });
+    const curved = n < 4 && kind === 'body' && X > BOWL.x1 - BOWL.rTop && Z > BOWL.h - BOWL.rTop - 6;
+    const pDark = curved ? 0.45 : kind === 'stair' || kind === 'step' ? 0 : n === 4 ? 0.22 : 0.3;     // step treads are always red-lit
+    blocks.push({ X, Y, Z, s, f, t: (hash3(i, j, k, 303) < pDark ? 0.04 : 0.85 + 0.3 * hash3(i, j, k, 300)) * Math.max(0.55, ao) });
+  };
+  const full = (i0, j0, k0, n, kind) => {
+    for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) for (let c = 0; c < n; c++) {
+      const kk = gk(i0 + a, j0 + b, k0 + c);
+      if (!grid.has(kk) || grid.get(kk) !== kind || done.has(kk)) return false;
+    }
+    return true;
   };
   for (const [key] of grid) {
     if (done.has(key)) continue;
     const [i, j, k] = key.split(',').map(Number);
-    const i0 = Math.floor(i / 2) * 2, j0 = Math.floor(j / 2) * 2, k0 = Math.floor(k / 2) * 2;
     const kind = grid.get(key);
-    let full = kind === 'body' || kind === 'stair';
-    for (let a = 0; a < 2 && full; a++) for (let b = 0; b < 2 && full; b++) for (let c = 0; c < 2 && full; c++) {
-      const kk = gk(i0 + a, j0 + b, k0 + c);
-      if (!grid.has(kk) || grid.get(kk) !== kind || done.has(kk)) full = false;
+    let n = 4, i0 = Math.floor(i / 4) * 4, j0 = Math.floor(j / 4) * 4, k0 = Math.floor(k / 4) * 4;
+    if (!full(i0, j0, k0, 4, kind)) {
+      n = 2; i0 = Math.floor(i / 2) * 2; j0 = Math.floor(j / 2) * 2; k0 = Math.floor(k / 2) * 2;
+      if (!full(i0, j0, k0, 2, kind)) { n = 1; i0 = i; j0 = j; k0 = k; }
     }
-    if (full) {
-      for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) for (let c = 0; c < 2; c++) done.add(gk(i0 + a, j0 + b, k0 + c));
-      emit(i0, j0, k0, 2);
-    } else {
-      done.add(key);
-      emit(i, j, k, 1);
-    }
+    for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) for (let c = 0; c < n; c++) done.add(gk(i0 + a, j0 + b, k0 + c));
+    emit(i0, j0, k0, n);
   }
 }
 
@@ -187,8 +208,8 @@ function emitPlatform() {
       if (rr > 1.0) continue;
       const r = hash3(ci, cj, 0, 2);
       const ring = rr > 0.8;
-      const flat = cj >= 0 && cj <= 2 && x > -45 && x < 150;                  // keeps its height: under the letter, the stairs and the doorstep
-      const under = cj >= 0 && cj <= 1 && x > -30 && x < 135;                     // hidden under the letter: no checker
+      const flat = cj >= 0 && cj <= 3 && x > -45 && x < 150;                  // keeps its height: under the letter, the stairs and the doorstep
+      const under = cj >= 0 && cj <= 2 && x > -30 && x < 135;                     // hidden under the letter: no checker
       let top = 0;
       if (ring && !flat) top = r < 0.12 ? -CELL / 2 : r > 0.88 ? CELL / 2 : 0;   // a couple of rim cubes stand higher or lower
       const D = bowlDepth(x, y) * (0.96 + 0.08 * hash3(ci, cj, 1, 4));
@@ -306,6 +327,7 @@ function material(token, n) {
 /* ---------- build ---------- */
 buildLetter();
 emitLetter();
+emitRibbon();
 emitPlatform();
 emitLoose();
 
@@ -389,8 +411,8 @@ for (const [, list] of groups) {
   tail.lineTo(-8.8, 0.2); tail.lineTo(-4.4, -2.2); tail.lineTo(0, -2.8); tail.closePath();
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.45, bevelEnabled: false }), red, -1.2, 10.5, -0.2, 0, 0.15, 0);
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.3, bevelEnabled: false }), redDark, -1.0, 9.9, -0.9, 0, 0.35, 0.05).scale.set(0.7, 0.6, 1);
-  g.scale.setScalar(1.3);
-  g.position.set(22.5, LANDING_Z, 37.5);
+  g.scale.setScalar(1.15);
+  g.position.set(37.5, LANDING_Z, 52.5);
   scene.add(g);
 })();
 
@@ -405,7 +427,7 @@ scene.add(fill);
 // brightest over the b and falls off toward the island's rim and the cone below; it casts the shadows.
 const key = new THREE.SpotLight(0xff2a1c, 15, 0, 0.62, 1.0, 0);
 key.position.set(-45, 280, 6);
-key.target.position.set(60, 40, 15);
+key.target.position.set(66, 40, 20);
 key.castShadow = true;
 key.shadow.mapSize.set(4096, 4096);
 key.shadow.camera.near = 50; key.shadow.camera.far = 600;
@@ -413,9 +435,9 @@ key.shadow.bias = -0.0004; key.shadow.normalBias = 0.35; key.shadow.radius = 3;
 scene.add(key, key.target);
 
 const doorInner = new THREE.PointLight(0xff2a1e, 420, 70, 2);         // glow inside the recess
-doorInner.position.set(DOOR.cx, 36, 24);
+doorInner.position.set(DOOR.cx, 30, 30);
 const doorMouth = new THREE.PointLight(0xff2418, 520, 38, 2);         // spill onto the floor, doorstep and nearby steps only
-doorMouth.position.set(DOOR.cx, 10, 40);
+doorMouth.position.set(DOOR.cx, 14, 52);
 scene.add(doorInner, doorMouth);
 
 const edgeLight = (X, Y, Z, intensity, dist) => {
@@ -430,12 +452,12 @@ const stripLight = (X, Y, Z, w, h, face, intensity) => {                  // sce
   l.lookAt(face === 'front' ? X : X - 1, Z, face === 'front' ? Y - 1 : Y);   // RectAreaLight emits away from the lookAt target
   scene.add(l);
 };
-stripLight(28, 31, 90, 4, 60, 'front', 8);                                // left edge of the stem above the landing
-stripLight(-32, 31, 30, 4, 60, 'front', 8);                               // left edge of the lowest step
-stripLight(133, 31, 37.5, 4, 75, 'front', 8);                             // front edge at the right end of the bowl
-stripLight(137, 24, 37.5, 6, 75, 'right', 8);                             // right end face, along its front edge
-edgeLight(52, 92, -70, 160, 100);                                     // low red glow under the island: the cone's tips catch it
-edgeLight(150, 80, -45, 90, 60);
+stripLight(28, 46, 82.5, 4, 75, 'front', 8);                                // left edge of the stem above the landing
+stripLight(-2, 61, 7.5, 4, 15, 'front', 8);                                // left edge of the lowest step
+stripLight(118, 46, 37.5, 4, 75, 'front', 8);                               // front edge at the right end of the bowl
+stripLight(122, 28, 37.5, 6, 75, 'right', 8);                               // right end face, along its front edge
+edgeLight(67, 92, -70, 160, 100);                                     // low red glow under the island: the cone's tips catch it
+edgeLight(160, 80, -45, 90, 60);
 edgeLight(-45, 70, -40, 80, 55);
 
 /* ---------- camera + render ---------- */
@@ -443,9 +465,9 @@ const bbox = new THREE.Box3();
 blocks.forEach((b) => bbox.expandByPoint(new THREE.Vector3(b.X, b.Z, b.Y)));
 const centre = bbox.getCenter(new THREE.Vector3());
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 2000);
-// Camera: 38 deg around from the b's face (so the door face is wider than the bowl's end) and 24 deg up: a lower view than
-// isometric, which shows the island's disc, the stepped cone below it and the b's tall front without squashing the island.
-const AZ = 38 * Math.PI / 180, EL = 24 * Math.PI / 180;
+// Camera measured from the reference: the stem's two visible faces are 2:1 (front : side), which for a 30 x 22.5 stem means
+// 34 deg around from the b's face; 21 deg up from the top-face proportions.
+const AZ = 34 * Math.PI / 180, EL = 21 * Math.PI / 180;
 camera.position.copy(centre).add(new THREE.Vector3(Math.sin(AZ) * Math.cos(EL), Math.sin(EL), Math.cos(AZ) * Math.cos(EL)).multiplyScalar(700));
 camera.lookAt(centre);
 camera.updateMatrixWorld(true);
