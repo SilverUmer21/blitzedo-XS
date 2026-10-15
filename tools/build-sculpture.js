@@ -45,6 +45,7 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/ja
   await page.waitForFunction('window.__sculptureReady === true', null, { timeout: 280000 });
   const size = await page.evaluate('window.__sculptureSize');
   console.log('scene', JSON.stringify(await page.evaluate('window.__sculptureStats')));
+  if (process.env.PROBE) console.log('probe', JSON.stringify(await page.evaluate(`(${process.env.PROBE}).map((p) => window.__project(...p))`)));
 
   const assets = path.join(__dirname, '..', 'assets');
   fs.mkdirSync(assets, { recursive: true });

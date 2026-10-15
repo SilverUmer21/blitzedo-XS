@@ -48,20 +48,22 @@ function vnoise(x, y, z, sc, s) {
  * steps up to a small landing, then a thin ribbon of small steps down to the doorstep. The front faces of stem and bowl
  * are flush. */
 const G = 3.75;                                    // finest letter cell; aligned groups merge into 7.5 and 15-unit cubes: the island's three tiers
-const BODY_Y1 = 45;                                // front plane of the letter: three cubes deep
+const BODY_Y1 = 45;                                // front plane of the letter
 const JF = BODY_Y1 / G;                            // cells through the depth of the bowl
-const STEM = { x0: 30, x1: 60, h: 120, y0: 15 };   // 2 cubes wide, 2 deep (front flush with the bowl), 8 tall
-const BOWL = { x0: 45, x1: 150, h: 75, rTop: 30, rBot: 0 };             // 3 deep, 5 tall, 7 wide; square bottom, small rounded top corner: the right end is a big, full-height side face
-const DOOR = { x0: 75, x1: 105, zRect: 37.5, cx: 90, r: 15, recessY: 30 };   // arched opening on the cube grid, recessed one cube
-const LANDING_Z = 45;                              // top of the stairs, where the explorer stands
+// Measured from the reference on a fine grid, in units of the stem's width (2 cubes = 30):
+const STEM = { x0: 30, x1: 60, h: 97.5, y0: 30 };  // 3.2x as tall as wide, one cube deep
+const BOWL = { x0: 45, x1: 120, h: 63.75, rTop: 26.25, rBot: 0, y0: 26.25 };   // one cube deep like the stem; big rounded top-right corner       // two cubes deep (y 15..45), square bottom, small rounded top-right corner
+const DOOR = { x0: 60, x1: 90, zRect: 33.75, cx: 75, r: 15, recessY: 30 };   // starts at the stem's front corner; deep recess so the red inner wall shows   // narrow arch starting just right of the stem, 11.25 deep
+const LANDING_Z = 52.5;                            // the landing against the stem where the explorer stands
+const STAIR_Y1 = 60;                               // the stair block stands one cube proud of the b's face
 const CELL = 15;                                   // island top cube; tiers below are CELL/2 and CELL/4
-const PLAT_CX = 90, PLAT_CY = 30, PLAT_AX = 84, PLAT_AY = 50;   // centred under the b: no spare platform to its left   // island footprint: an ellipse that reads as a disc from the camera
+const PLAT_CX = 70, PLAT_CY = 34, PLAT_AX = 74, PLAT_AY = 46;   // island footprint, centred under the b
 
 const inCircle = (x, z, cx, cz, r) => (x - cx) ** 2 + (z - cz) ** 2 <= r * r;
 const inStem = (X, Z) => X >= STEM.x0 && X < STEM.x1 && Z >= 0 && Z < STEM.h;
 function inBowl(X, Z) {
   if (X < BOWL.x0 || X >= BOWL.x1 || Z < 0 || Z >= BOWL.h) return false;
-  const Xs = Math.floor(X / 7.5) * 7.5 + 3.75, Zs = Math.floor(Z / 7.5) * 7.5 + 3.75;     // the arc is cut on a 7.5 grid
+  const Xs = X, Zs = Z;                                                    // the arc is cut on the 3.75 grid
   const cxT = BOWL.x1 - BOWL.rTop, czT = BOWL.h - BOWL.rTop;
   if (Xs > cxT && Zs > czT && !inCircle(Xs, Zs, cxT, czT, BOWL.rTop)) return false;
   const cxB = BOWL.x1 - BOWL.rBot, czB = BOWL.rBot;
@@ -99,35 +101,36 @@ function buildLetter() {
     for (let k = 0; k < Math.round(STEM.h / G); k++) {
       const X = cen(i), Z = cen(k);
       if (!inLetter(X, Z)) continue;
-      const j0 = inBowl(X, Z) ? 0 : Math.round(STEM.y0 / G);
+      const j0 = Math.round((inBowl(X, Z) ? BOWL.y0 : STEM.y0) / G);
       for (let j = j0; j < JF; j++) {
         if (inDoorOpening(X, Z) && cen(j) > DOOR.recessY) continue;       // recess: one cube deep
         put(i, j, k, 'body');
       }
     }
   }
-  // no block left of the stem: the only stairs are one flight down the front wall (emitStairs)
-  // doorstep
-  putBox(75, 105, 45, 52.5, 0, 7.5, 'step');
+  // nothing left of the stem; the stairs are built in emitStairs. Doorstep in front of the door:
+  putBox(63.75, 93.75, 45, 52.5, 0, 3.75, 'step');
   chips.forEach(([i, j, k]) => grid.delete(gk(i, j, k)));
 }
 
-// One flight of stairs against the front wall: a landing (11.25 wide, 45 high) in front of the stem where the explorer stands, then nine
-// steps (3.75 wide, 3.75 rise) down to the doorstep. Each step is a solid column of 3.75-unit blocks, two deep (7.5), so the flight
-// reads as a stair wedge built onto the wall; treads are lit, the risers below sit in shadow.
+// Stairs, as in the reference. A landing against the stem (x 30..45, 52.5 high) where the explorer stands, on a block one cube proud of
+// the b's face; three steps come forward toward the viewer. Then a flight of five steps (3.75 run, 7.5 rise) runs right along the wall,
+// as deep as the landing block, down to the doorstep. Everything is stacked 3.75-unit blocks, so the walls under the steps read as fine masonry.
 function emitStairs() {
   const q = 3.75;
-  const cols = [];
-  for (let c = 0; c < 3; c++) cols.push([30 + q / 2 + c * q, 45]);                         // landing
-  for (let st = 0; st < 9; st++) cols.push([41.25 + q / 2 + st * q, 41.25 - st * q]);      // treads 41.25 ... 11.25, then the 7.5 doorstep
-  cols.forEach(([X, top], c) => {
+  let c = 0;
+  const stack = (X, Y, top) => {
     const n = Math.round(top / q);
-    for (let k = 0; k < n; k++) for (let d = 0; d < 2; d++) {
+    for (let k = 0; k < n; k++) {
       const f = baseFaces();
-      f[2] = 'c' + Math.floor(hash3(c, k, d, 250) * 4); f[0] = 'c' + Math.floor(hash3(c, k, d, 251) * 4); f[4] = 'c' + Math.floor(hash3(c, k, d, 252) * 4);
-      blocks.push({ X, Y: BODY_Y1 + q / 2 + d * q, Z: k * q + q / 2, s: q, f, t: k === n - 1 ? 0.95 : 0.55 + 0.3 * hash3(c, k, d, 253) });
+      f[2] = 'c' + Math.floor(hash3(c, k, 0, 250) * 4); f[0] = 'c' + Math.floor(hash3(c, k, 1, 251) * 4); f[4] = 'c' + Math.floor(hash3(c, k, 2, 252) * 4);
+      blocks.push({ X, Y, Z: k * q + q / 2, s: q, f, t: k === n - 1 ? 0.95 : 0.5 + 0.35 * hash3(c, k, 3, 253) });
     }
-  });
+    c++;
+  };
+  const firstFlight = [52.5, 48.75, 45, 41.25];                       // landing row, then three steps toward the viewer
+  for (let r = 0; r < 4; r++) for (let x = 0; x < 4; x++) stack(30 + q / 2 + x * q, 45 + q / 2 + r * q, firstFlight[r]);
+  for (let st = 0; st < 5; st++) for (let r = 0; r < 4; r++) stack(45 + q / 2 + st * q, 45 + q / 2 + r * q, 37.5 - st * 7.5);
 }
 
 /* merge aligned groups into the island's three tiers: 15-unit cubes (4x4x4 cells) where a full group fits, else 7.5-unit blocks
@@ -187,7 +190,7 @@ function emitLetter() {
 const rOf = (x, y) => Math.pow(Math.abs((x - PLAT_CX) / PLAT_AX) ** 3 + Math.abs((y - PLAT_CY) / PLAT_AY) ** 3, 1 / 3);   // 0 at the centre, 1 at the rim
 function bowlDepth(x, y) {
   const r = Math.min(1, rOf(x, y));
-  return 15 + 86 * Math.pow(1 - r, 1.1);                             // rim ~15 deep, centre ~107: a pointed gem, stepped by the cube tiers
+  return 15 + 52 * Math.pow(1 - r, 0.9);                             // rim ~15 deep, centre ~107: a pointed gem, stepped by the cube tiers
 }
 const tierFaces = (h) => {
   const f = baseFaces();
@@ -205,8 +208,8 @@ function emitPlatform() {
       if (rr > 1.0) continue;
       const r = hash3(ci, cj, 0, 2);
       const ring = rr > 0.8;
-      const flat = cj >= 0 && cj <= 3 && x > -45 && x < 165;                  // keeps its height: under the letter, the stairs and the doorstep
-      const under = cj >= 0 && cj <= 2 && x > 15 && x < 150;                       // hidden under the letter: no checker
+      const flat = cj >= 0 && cj <= 3 && x > -30 && x < 135;                  // keeps its height: under the letter, the stairs and the doorstep
+      const under = cj >= 1 && cj <= 2 && x > 30 && x < 105;                       // hidden under the letter: no checker
       let top = 0;
       if (ring && !flat && r > 0.93) top = CELL / 2;                           // only the odd rim cube stands higher: otherwise a regular row
       const D = bowlDepth(x, y) * (0.96 + 0.08 * hash3(ci, cj, 1, 4));
@@ -411,8 +414,8 @@ for (const [, list] of groups) {
   tail.lineTo(-8.8, 0.2); tail.lineTo(-4.4, -2.2); tail.lineTo(0, -2.8); tail.closePath();
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.45, bevelEnabled: false }), red, -1.2, 10.5, -0.2, 0, 0.15, 0);
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.3, bevelEnabled: false }), redDark, -1.0, 9.9, -0.9, 0, 0.35, 0.05).scale.set(0.7, 0.6, 1);
-  g.scale.setScalar(1.15);
-  g.position.set(35.6, LANDING_Z, 48.75);
+  g.scale.setScalar(0.95);
+  g.position.set(37.5, LANDING_Z, 47);
   scene.add(g);
 })();
 
@@ -435,9 +438,9 @@ key.shadow.bias = -0.0004; key.shadow.normalBias = 0.35; key.shadow.radius = 3;
 scene.add(key, key.target);
 
 const doorInner = new THREE.PointLight(0xff2a1e, 420, 70, 2);         // glow inside the recess
-doorInner.position.set(DOOR.cx, 30, 30);
+doorInner.position.set(DOOR.cx, 22, 39);
 const doorMouth = new THREE.PointLight(0xff2418, 520, 38, 2);         // spill onto the floor, doorstep and nearby steps only
-doorMouth.position.set(DOOR.cx, 14, 52);
+doorMouth.position.set(DOOR.cx, 12, 54);
 scene.add(doorInner, doorMouth);
 
 const edgeLight = (X, Y, Z, intensity, dist) => {
@@ -452,9 +455,9 @@ const stripLight = (X, Y, Z, w, h, face, intensity) => {                  // sce
   l.lookAt(face === 'front' ? X : X - 1, Z, face === 'front' ? Y - 1 : Y);   // RectAreaLight emits away from the lookAt target
   scene.add(l);
 };
-stripLight(28, 46, 82.5, 4, 75, 'front', 8);                                // left edge of the stem above the landing
-stripLight(148, 46, 37.5, 4, 75, 'front', 8);                               // front edge at the right end of the bowl
-stripLight(152, 28, 37.5, 6, 75, 'right', 8);                               // right end face, along its front edge
+stripLight(28, 46, 75, 4, 45, 'front', 8);                                // left edge of the stem above the landing
+stripLight(118, 46, 31.9, 4, 63.75, 'front', 8);                               // front edge at the right end of the bowl
+stripLight(122, 37.5, 31.9, 4, 63.75, 'right', 3);                               // right end face, along its front edge
 edgeLight(67, 92, -70, 160, 100);                                     // low red glow under the island: the cone's tips catch it
 edgeLight(160, 80, -45, 90, 60);
 edgeLight(-45, 70, -40, 80, 55);
@@ -466,7 +469,7 @@ const centre = bbox.getCenter(new THREE.Vector3());
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 2000);
 // Camera measured from the reference: the bowl's right end is half as wide on screen as its front (45 deep x 75 wide), which
 // means 40 deg around from the b's face; 21 deg up from the top-face proportions.
-const AZ = 38 * Math.PI / 180, EL = 21 * Math.PI / 180;
+const AZ = 41 * Math.PI / 180, EL = 18 * Math.PI / 180;
 camera.position.copy(centre).add(new THREE.Vector3(Math.sin(AZ) * Math.cos(EL), Math.sin(EL), Math.cos(AZ) * Math.cos(EL)).multiplyScalar(700));
 camera.lookAt(centre);
 camera.updateMatrixWorld(true);
@@ -483,6 +486,8 @@ minX -= 4; maxX += 4; minY -= 4; maxY += 4;
 Object.assign(camera, { left: minX, right: maxX, top: maxY, bottom: minY });
 camera.updateProjectionMatrix();
 const W = Math.ceil((maxX - minX) * UNIT_PX), H = Math.ceil((maxY - minY) * UNIT_PX);
+// world (scene X, Y, Z) -> output pixel, used by tools to align the render with the reference
+window.__project = (X, Y, Z) => { const v = new THREE.Vector3(X, Z, Y).project(camera); return [(v.x + 1) / 2 * W, (1 - v.y) / 2 * H]; };
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1);
