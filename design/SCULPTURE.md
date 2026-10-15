@@ -66,17 +66,15 @@ How the home page sculpture (`assets/sculpture.webp`) is built, and how each par
 
 ## Stairs: the path
 
-They start at the gate and end at a small doorway in the stem:
+Chunky steps (7.5 run, 7.5 rise: three voxels), each one big block deep, as in the reference:
 
-1. **Gate step**: a raised platform of red tiles (with dark joints) in front of the gate only; its front is black stone below a
-   red lip. The stairs start from it.
-2. **Lower flight**: 8 steps (5 run, 5 rise) climb left along the stem's front to the tower.
-3. **Mid landing**: the front of the tower at the b's front-left, 45 high, with red rims on its edges. The stairs turn here.
-4. **Upper flight**: 3 steps climb back toward the stem.
-5. **Top landing**: 65 high, beside the stem's front-left corner.
-6. **Small doorway**: a dark arched recess cut into the stem at the top landing, which the stairs end in.
+1. **Top landing**: at the stem's front-left corner, 75 high, where the explorer stands.
+2. **Short flight**: two steps come down toward the viewer onto the tower.
+3. **Tower (mid landing)**: 52.5 high at the b's front-left, with a red outline on its edges.
+4. **Long flight**: six steps run right along the stem's front, down to the gate.
+5. **Gate step**: red tiles in front of the gate, where the flight lands.
 
-Treads are red; risers are dark stone.
+Treads are red; risers are dark stone; the stairs' outer edges carry the red outline.
 
 ## Island
 
@@ -95,8 +93,8 @@ Treads are red; risers are dark stone.
 
 - **Stem**: 30 × 30 × 120.
 - **Bowl**: 90 long, 30 deep, 75 high. Its right end is two big blocks; its top-right curve has radius 45 and is cut
-  voxel by voxel so it reads round. At the bottom of its right end the bowl's foot flares out in a black concave curve that merges into the island; no light falls
-  there. The curved
+  voxel by voxel so it reads round. Its right end is a D: rounded at the top (r45) and at the bottom (r30). The island blocks under and behind the curve are dark
+  (no red tops), so the curve reads clearly where it ends. The curved
   shoulder carries red only at its front and back edges.
 - **Gate**: 30 wide, a 37.5-high rectangle under a radius-15 arch.
 

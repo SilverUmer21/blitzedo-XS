@@ -63,7 +63,7 @@ function fillBox(x0, x1, y0, y1, z0, z1, k, b) {  // units; cells whose centres 
 
 /* ---------- the b ---------- */
 const STEM = { x0: 30, x1: 60, y0: 15, y1: 45, h: 120 };
-const BOWL = { x0: 45, x1: 135, y0: 15, y1: 45, h: 75, rTop: 45, rBot: 0 };
+const BOWL = { x0: 45, x1: 135, y0: 15, y1: 45, h: 75, rTop: 45, rBot: 30 };   // a D: rounded top and bottom of the right end
 const DOOR = { x0: 75, x1: 105, zRect: 37.5, cx: 90, r: 15, recessY: 30 };   // arched gate, recessed one big block
 const inCircle = (x, z, ox, oz, r) => (x - ox) ** 2 + (z - oz) ** 2 <= r * r;
 function inBowl(X, Z) {
@@ -102,14 +102,17 @@ function buildLetter() {
 // The tower at the front-left carries the mid landing (its front, 45 high) and the upper flight, which climbs back (-Y) to the top
 // landing beside the stem's front-left corner; there a small dark doorway is cut into the stem. The lower flight runs along the
 // stem's front from the tower down to the gate's threshold. Steps are 5 run / 5 rise (two voxels).
-const STEP = 5;
-const MID_Z = 45, TOP_Z = 65;
-const SMALL_DOOR = { x0: 30, x1: 37.5, y0: 37.5, y1: 45, z0: TOP_Z, zRect: 75, r: 3.75 };
+const STEP = 7.5;                                 // chunky steps: 3 voxels run and rise, like the reference
+const MID_Z = 52.5, TOP_Z = 75;
+const SMALL_DOOR = { x0: 30, x1: 37.5, y0: 37.5, y1: 45, z0: TOP_Z, zRect: 85, r: 3.75 };
 function buildStairs() {
-  fillBox(10, 30, 50, 62.5, 0, MID_Z, KIND.TOWER, newBlock(true));                                 // mid landing (tower front)
-  for (let s = 1; s <= 3; s++) fillBox(10, 30, 50 - STEP * s, 55 - STEP * s, 0, MID_Z + STEP * s, KIND.STAIR, newBlock(true));
-  fillBox(10, 30, 25, 35, 0, TOP_Z, KIND.TOWER, newBlock(true));                                    // top landing, beside the stem
-  for (let s = 0; s < 8; s++) fillBox(30 + STEP * s, 35 + STEP * s, 45, 55, 0, MID_Z - STEP * (s + 1), KIND.STAIR, newBlock(true));
+  // top landing at the stem's front-left corner (where the explorer stands); three steps come down toward the viewer onto the
+  // tower; from the tower a long flight runs right along the stem's front down to the gate step. Each step is one big block deep.
+  fillBox(10, 30, 30, 45, 0, TOP_Z, KIND.TOWER, newBlock(true));                                    // top landing (explorer)
+  fillBox(10, 30, 45, 60, 0, MID_Z, KIND.TOWER, newBlock(true));                                    // the tower: mid landing
+  fillBox(10, 30, 45, 50, 0, TOP_Z - STEP, KIND.STAIR, newBlock(true));                             // two steps down onto the tower
+  fillBox(10, 30, 50, 55, 0, TOP_Z - 2 * STEP, KIND.STAIR, newBlock(true));
+  for (let s = 0; s < 6; s++) fillBox(30 + STEP * s, 30 + STEP * (s + 1), 45, 60, 0, MID_Z - STEP * (s + 1), KIND.STAIR, newBlock(true));
   // the gate's step: red tiles from the gate along the bowl's front, then curving in under the bowl's rounded bottom ending
   const stepBlock = newBlock(true);
   for (let i = vi(65); i < vi(137.5); i++) for (let j = vj(15); j < vj(57.5); j++) {
@@ -142,7 +145,8 @@ function buildIsland() {
     const rim = rr > 0.78 && !covered;
     let top = 0;
     if (rim) top = r < 0.12 ? -7.5 : 0;                                      // uneven rim: the odd block sits lower
-    const red = covered ? false : ((ci + cj) & 1) === (hash3(ci, cj, 5, 7) < 0.25 ? 1 : 0);
+    const shadowed = x > 100 && y < 60;                                        // under and behind the bowl's curved end: dark stone, so the curve reads
+    const red = covered || shadowed ? false : ((ci + cj) & 1) === (hash3(ci, cj, 5, 7) < 0.25 ? 1 : 0);
     const h1 = rim ? [15, 22.5][Math.floor(hash3(ci, cj, 2, 9) * 2)] : 15;
     fillBox(x - 7.5, x + 7.5, y - 7.5, y + 7.5, top - h1, top, KIND.ISLAND, newBlock(red));
     // hanging column: this block's own stalactite, tapering in jagged steps (5, 4, 3, 2, 1 voxels wide), a black gap to its neighbours
@@ -178,14 +182,7 @@ buildIsland();
 buildLetter();
 buildStairs();
 buildLoose();
-// the bowl's right foot flares out in a black concave curve and merges into the island (no light on it)
-{
-  const fb = newBlock(false);
-  for (let i = vi(135); i < vi(155); i++) for (let j = vj(15); j < vj(45); j++) for (let k = vk(0); k < vk(20); k++) {
-    const X = cx(i), Z = cz(k);
-    if ((X - 155) ** 2 + (Z - 20) ** 2 > 400 && inb(i, j, k) && kind[idx(i, j, k)] === 0) { kind[idx(i, j, k)] = KIND.ISLAND; bid[idx(i, j, k)] = fb; }
-  }
-}
+
 roughen();
 
 /* ---------- rough surface: random one-voxel dents in the visible faces of the island and the b ---------- */
@@ -413,7 +410,7 @@ const LANDING_Z = TOP_Z;
   add(new THREE.ExtrudeGeometry(tail, { depth: 0.3, bevelEnabled: false }), redDark, -1.2, 8.3, -1.2, 0, 0.55, 0.08).scale.set(0.75, 0.7, 1);
   g.scale.setScalar(1.3);
   g.rotation.y = -0.4;                                                     // facing right, down the flight toward the gate
-  g.position.set(21, LANDING_Z, 40);
+  g.position.set(20, LANDING_Z, 38);
   scene.add(g);
 })();
 

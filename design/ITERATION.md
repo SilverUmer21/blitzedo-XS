@@ -53,5 +53,6 @@ Use [DESIGN.md](../DESIGN.md) as the current source of design decisions. Add rev
 | 2026-10-15 | Rounder bowl curve (r45, voxel-cut, red only at its edges); island columns separated and stepped with black gaps; patchy red on the underside edges and ledges instead of a solid border; strong stone grain and rough dented surface; raised red-tiled gate step where the stairs start. | Implemented, awaiting user review |
 | 2026-10-15 | Island red as whole-edge lines down the columns (no per-voxel dots); bowl gets a curved bottom ending; the gate's tiled step runs along the bowl front and curves in under it. | Implemented, awaiting user review |
 | 2026-10-15 | Underside red reduced to three light lines (front-row columns under the stairs and gate) plus tip bottoms; bowl's right foot flares in a black curve into the island; red step limited to the front of the gate. | Implemented, awaiting user review |
+| 2026-10-15 | Bowl's right end is a D (rounded bottom, r30) over dark island blocks; stairs remade with chunky 7.5 steps: explorer's top landing at the stem's front-left, two steps down to the tower, six steps along the stem to the gate. | Implemented, awaiting user review |
 
 For each later review, record the exact file, decision, and approval status. Do not mark proposals approved without a user decision.
