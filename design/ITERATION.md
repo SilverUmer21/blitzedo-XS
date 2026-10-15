@@ -33,5 +33,6 @@ Use [DESIGN.md](../DESIGN.md) as the current source of design decisions. Add rev
 | 2026-10-15 | Preserve the documented direction and original artwork; continue design before code. | Current foundation |
 | 2026-10-15 | Deliver the remaining artwork and documentation together in one commit. | User requested |
 | 2026-10-15 | Build the Home page: generated voxel b sculpture (finer stone, red rim light, glowing doorway, tapered floating foundation), primary button in `#D51D22`, clean wordmark, no active nav item on Home. | Implemented, awaiting user review |
+| 2026-10-15 | Rebuild the sculpture in three.js with real cubes (big foundation blocks, pixel-art textures, shadow-casting lights, doorway light) closer to the reference. | Implemented, awaiting user review |
 
 For each later review, record the exact file, decision, and approval status. Do not mark proposals approved without a user decision.

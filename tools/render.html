@@ -1,6 +1,11 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>Sculpture render</title>
+<script type="importmap">
+{ "imports": {
+  "three": "./node_modules/three/build/three.module.js",
+  "three/addons/": "./node_modules/three/examples/jsm/"
+} }
+</script>
 <body style="margin:0;background:#000">
-<canvas id="sculpture"></canvas>
-<script src="sculpture-render.js"></script>
+<script type="module" src="sculpture3d.js"></script>
