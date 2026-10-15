@@ -43,12 +43,12 @@ const DOOR = { x0: 60, x1: 87, zRect: 36, cx: 73.5, r: 13.5, recessY: 9 };   // 
 const BODY_Y1 = 27;
 const JF = BODY_Y1 / G;                            // cells in the depth of the body
 const STEM = { x0: 24, x1: 51, h: 108 };
-const BOWL = { x0: 42, x1: 114, h: 72, rTop: 33, rBot: 21 };
+const BOWL = { x0: 42, x1: 114, h: 72, rTop: 36, rBot: 24 };
 const LANDING_Z = 45;
-const PLAT = { x0: -12, x1: 132, y0: -12, y1: 36 };
+const PLAT = { x0: -12, x1: 132, y0: -12, y1: 48 };
 const PLAT_CX = (PLAT.x0 + PLAT.x1) / 2, PLAT_CY = (PLAT.y0 + PLAT.y1) / 2;
 const PLAT_AX = (PLAT.x1 - PLAT.x0) / 2, PLAT_AY = (PLAT.y1 - PLAT.y0) / 2;
-const RIM_M = 0.78;
+const RIM_M = 0.74;
 const CELL = 12;                                   // foundation top cube
 
 const inCircle = (x, z, cx, cz, r) => (x - cx) ** 2 + (z - cz) ** 2 <= r * r;
@@ -72,7 +72,7 @@ function platM(x, y) {
   const u = Math.abs(x - PLAT_CX) / PLAT_AX, v = Math.abs(y - PLAT_CY) / PLAT_AY;
   return Math.pow(u ** 7 + v ** 7, 1 / 7);
 }
-const inFootprint = (x, y) => x > -4 && x < 120 && y > -4 && y < 36;
+const inFootprint = (x, y) => x > -4 && x < 120 && y > -4 && y < 36;   // cells under the letter, stairs and doorstep stay flat
 
 /* ---------- blocks ---------- */
 // block: { X, Y, Z (centre, scene units), s (size), f: [6 face tokens], t (brightness tint) }
@@ -184,8 +184,8 @@ function emitPlatform() {
       const r = hash3(ci, cj, 0, 2), core = 1 - m;
       const onRim = m > RIM_M && !inFootprint(x, y);
       let top = 0;
-      if (onRim) top = r < 0.3 ? -6 : (r > 0.72 && x > 36 ? 6 : 0);                 // rim cubes stand at different heights
-      const H = 12 + 70 * Math.pow(core, 1.1) * (0.7 + 0.5 * r);                      // total hang (inverted pyramid)
+      if (onRim) top = r < 0.34 ? -6 : (r > 0.62 && x > 30 ? 6 : 0);                 // rim cubes stand at different heights
+      const H = 24 + 72 * Math.pow(core, 1.3) * (0.7 + 0.5 * r);                      // total hang (inverted pyramid)
       let rem = H - CELL;
       const extra = Math.floor(rem * 0.3 / CELL);
       const n12 = 1 + extra;
@@ -227,8 +227,8 @@ function emitPlatform() {
 /* ----- loose floating cubes ----- */
 const LOOSE = [
   // x, y, z (centre), size
-  [-18, 36, -30, 12], [10, 40, -46, 6], [46, 41, -66, 12], [78, 42, -74, 6],
-  [100, 41, -48, 12], [126, 30, -28, 9], [26, 44, -60, 6], [90, 42, -40, 9]
+  [-20, 52, -28, 12], [10, 58, -48, 6], [46, 60, -76, 12], [80, 60, -80, 6],
+  [104, 58, -52, 12], [130, 44, -30, 9], [26, 62, -66, 6], [92, 60, -40, 9]
 ];
 function emitLoose() {
   LOOSE.forEach(([X, Y, Z, s], n) => blocks.push({ X, Y, Z, s, f: tierFaces(900 + n), t: 0.85 }));
@@ -248,7 +248,7 @@ function makeTexture(kind, variant, n) {
   const rnd = (x, y, s) => hash3(x, y, seed, s);
   // Voronoi chips: each texel belongs to its nearest site; each site has its own brightness
   const sites = [];
-  const count = Math.max(4, Math.round(n * n / 6.5));
+  const count = Math.max(4, Math.round(n * n / 9));
   for (let i = 0; i < count; i++) sites.push({ x: rnd(i, 0, 1) * n, y: rnd(i, 1, 2) * n, v: 0.38 + 0.8 * Math.pow(rnd(i, 2, 3), 1.3) });
   const owner = new Int16Array(n * n);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
@@ -262,7 +262,7 @@ function makeTexture(kind, variant, n) {
       let f = sites[o].v;
       const edge = (x > 0 && owner[y * n + x - 1] !== o) || (y > 0 && owner[(y - 1) * n + x] !== o);
       if (edge && rnd(x, y, 4) < 0.7) f *= 0.45;                           // cracks between chips
-      if (rnd(x, y, 5) < 0.05) f *= 0.5;                                   // pits
+      if (rnd(x, y, 5) < 0.03) f *= 0.5;                                   // pits
       if (rnd(x, y, 6) < 0.04) f *= 1.35;                                  // chalky flecks
       // bevel: lit top-left edges, shaded bottom-right
       if (y === 0) f *= 1.9;
@@ -364,9 +364,9 @@ for (const [, list] of groups) {
 })();
 
 /* ---------- lights: red is the main light; the white fill is almost nothing ---------- */
-scene.add(new THREE.AmbientLight(0xffffff, 0.075));
+scene.add(new THREE.AmbientLight(0xffffff, 0.1));
 scene.add(new THREE.HemisphereLight(0xb8b4c0, 0x120c0c, 0.1));
-const fill = new THREE.DirectionalLight(0xc8ccd8, 0.28);              // keeps the left faces a touch lighter than the right
+const fill = new THREE.DirectionalLight(0xc8ccd8, 0.38);              // keeps the left faces a touch lighter than the right
 fill.position.set(-80, 70, 160);
 scene.add(fill);
 
@@ -388,6 +388,19 @@ doorInner.position.set(DOOR.cx, 22, 18);
 const doorMouth = new THREE.PointLight(0xff2418, 1700, 65, 2);        // spill onto floor, steps and wall
 doorMouth.position.set(DOOR.cx, 14, 36);
 scene.add(doorInner, doorMouth);
+
+const edgeLights = [];
+const edgeLight = (X, Y, Z, intensity, dist) => {
+  const l = new THREE.PointLight(0xff2418, intensity, dist, 2);
+  l.position.set(X, Z, Y);                                            // scene (X, Y, Z) -> three (x, z, y)
+  edgeLights.push(l); scene.add(l);
+};
+for (const z of [92, 70, 48]) edgeLight(19, 31, z, 150, 26);          // left edge of the stem
+for (const z of [60, 36, 14]) edgeLight(117, 34, z, 130, 26);         // right end of the bowl
+edgeLight(48, 30, 100, 90, 22);
+edgeLight(56, 76, -52, 330, 80);                                      // low red glow under the island: the stalactite tips catch it
+edgeLight(112, 62, -44, 240, 70);
+edgeLight(6, 62, -38, 200, 60);                                       // top front corner of the stem
 
 /* ---------- camera + render ---------- */
 const bbox = new THREE.Box3();
