@@ -68,7 +68,8 @@ How the home page sculpture (`assets/sculpture.webp`) is built, and how each par
 
 They start at the gate and end at a small doorway in the stem:
 
-1. **Gate step**: a raised platform of red tiles (with dark joints) in front of the gate, where the stairs start.
+1. **Gate step**: a raised platform of red tiles (with dark joints) from the gate along the bowl's front, curving in under the
+   bowl's rounded bottom ending; the stairs start from it.
 2. **Lower flight**: 8 steps (5 run, 5 rise) climb left along the stem's front to the tower.
 3. **Mid landing**: the front of the tower at the b's front-left, 45 high, with red rims on its edges. The stairs turn here.
 4. **Upper flight**: 3 steps climb back toward the stem.
@@ -81,8 +82,9 @@ Treads are red; risers are dark stone.
 
 - Each top block hangs as its **own column**: it tapers in jagged steps (5, 4, 3, 2, 1 voxels wide, 3–5 voxels per step,
   chipped corners), so neighbouring columns are separated by black gaps, as in the reference.
-- Red under the island: the bottom tips, patchy red along the silhouette edges, and red on some of the step ledges
-  (where light catches the rough underside). The column fronts stay black.
+- Red under the island is drawn as **lines, never dots**: whole vertical column edges that face a gap are red or not as a unit
+  (about 4 in 10, decided per column edge), plus the silhouette edges and the bottom edge of every tip. No per-voxel randomness,
+  so the red reads as lit edges running down the columns. The column fronts stay black.
 - Rough surface: random one-voxel dents in the side faces (7 % on the island, 2.5 % on the b).
 
 - A slab of big blocks with a rounded-rectangle outline; the odd edge block sits lower.
@@ -94,7 +96,8 @@ Treads are red; risers are dark stone.
 
 - **Stem**: 30 × 30 × 120.
 - **Bowl**: 90 long, 30 deep, 75 high. Its right end is two big blocks; its top-right curve has radius 45 and is cut
-  voxel by voxel so it reads round. The curved shoulder carries red only at its front and back edges.
+  voxel by voxel so it reads round. The bottom-right ending is curved too (radius 30), giving the bowl its D shape. The curved
+  shoulder carries red only at its front and back edges.
 - **Gate**: 30 wide, a 37.5-high rectangle under a radius-15 arch.
 
 ## Rebuild

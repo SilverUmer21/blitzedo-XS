@@ -63,13 +63,15 @@ function fillBox(x0, x1, y0, y1, z0, z1, k, b) {  // units; cells whose centres 
 
 /* ---------- the b ---------- */
 const STEM = { x0: 30, x1: 60, y0: 15, y1: 45, h: 120 };
-const BOWL = { x0: 45, x1: 135, y0: 15, y1: 45, h: 75, rTop: 45 };
+const BOWL = { x0: 45, x1: 135, y0: 15, y1: 45, h: 75, rTop: 45, rBot: 30 };
 const DOOR = { x0: 75, x1: 105, zRect: 37.5, cx: 90, r: 15, recessY: 30 };   // arched gate, recessed one big block
 const inCircle = (x, z, ox, oz, r) => (x - ox) ** 2 + (z - oz) ** 2 <= r * r;
 function inBowl(X, Z) {
   if (X < BOWL.x0 || X >= BOWL.x1 || Z < 0 || Z >= BOWL.h) return false;
   const ox = BOWL.x1 - BOWL.rTop, oz = BOWL.h - BOWL.rTop;
-  return !(X > ox && Z > oz && !inCircle(X, Z, ox, oz, BOWL.rTop));     // cut voxel by voxel: a round curve
+  if (X > ox && Z > oz && !inCircle(X, Z, ox, oz, BOWL.rTop)) return false;   // cut voxel by voxel: a round curve
+  const bx = BOWL.x1 - BOWL.rBot, bz = BOWL.rBot;
+  return !(X > bx && Z < bz && !inCircle(X, Z, bx, bz, BOWL.rBot));          // the curved bottom ending of the bowl
 }
 const inStem = (X, Z) => X >= STEM.x0 && X < STEM.x1 && Z >= 0 && Z < STEM.h;
 const inDoor = (X, Z) => X >= DOOR.x0 && X < DOOR.x1 && Z >= 0 && (Z < DOOR.zRect || inCircle(X, Z, DOOR.cx, DOOR.zRect, DOOR.r));
@@ -108,12 +110,14 @@ function buildStairs() {
   for (let s = 1; s <= 3; s++) fillBox(10, 30, 50 - STEP * s, 55 - STEP * s, 0, MID_Z + STEP * s, KIND.STAIR, newBlock(true));
   fillBox(10, 30, 25, 35, 0, TOP_Z, KIND.TOWER, newBlock(true));                                    // top landing, beside the stem
   for (let s = 0; s < 8; s++) fillBox(30 + STEP * s, 35 + STEP * s, 45, 55, 0, MID_Z - STEP * (s + 1), KIND.STAIR, newBlock(true));
-  fillBox(65, 110, 45, 57.5, 0, 5, KIND.THRESH, newBlock(true));                                   // the gate's step: a raised platform of red tiles
-  // the small doorway: a dark recess in the stem's front at the top landing
-  for (let i = vi(SMALL_DOOR.x0); i < vi(SMALL_DOOR.x1); i++) for (let j = vj(SMALL_DOOR.y0); j < vj(SMALL_DOOR.y1); j++) for (let k = vk(SMALL_DOOR.z0); k < vk(SMALL_DOOR.zRect + SMALL_DOOR.r); k++) {
-    const X = cx(i), Z = cz(k);
-    if (Z >= SMALL_DOOR.zRect && !inCircle(X, Z, (SMALL_DOOR.x0 + SMALL_DOOR.x1) / 2, SMALL_DOOR.zRect, SMALL_DOOR.r + 0.1)) continue;
-    if (inb(i, j, k)) kind[idx(i, j, k)] = KIND.SMALLDOOR;
+  // the gate's step: red tiles from the gate along the bowl's front, then curving in under the bowl's rounded bottom ending
+  const stepBlock = newBlock(true);
+  for (let i = vi(65); i < vi(137.5); i++) for (let j = vj(15); j < vj(57.5); j++) {
+    const X = cx(i), Y = cy(j);
+    const front = Y >= 45 && X < 135 - Math.max(0, Y - 45) * 0.8;            // front strip, its right end rounded off
+    const under = Y < 45 && !inBowl(X, 1.25) && X < 135;                     // the floor under the bowl's curved ending
+    if (!front && !under) continue;
+    for (let k = vk(0); k < vk(5); k++) if (inb(i, j, k) && kind[idx(i, j, k)] === 0) { kind[idx(i, j, k)] = KIND.THRESH; bid[idx(i, j, k)] = stepBlock; }
   }
 }
 
@@ -179,7 +183,7 @@ function roughen() {
     const fx = !solid(i + 1, j, k) && solid(i - 1, j, k), fy = !solid(i, j + 1, k) && solid(i, j - 1, k);
     if (!(fx || fy) || !solid(i, j, k + 1)) continue;                         // side faces only, never the tops
     if (kd === KIND.LETTER && (K(i + 1, j, k) >= 254 || K(i, j + 1, k) >= 254 || cz(k) < 5)) continue;
-    if (hash3(i, j, k, 90) < (kd === KIND.ISLAND ? 0.07 : 0.025)) out.push(idx(i, j, k));
+    if (hash3(i, j, k, 90) < (kd === KIND.ISLAND ? 0.03 : 0.025)) out.push(idx(i, j, k));
   }
   out.forEach((n) => { kind[n] = 0; });
 }
@@ -277,18 +281,19 @@ function faceColour(i, j, k, f) {
     for (const [a, bb, c] of IN_PLANE[f]) {
       if (c > 0 && letterish) continue;                       // top edges of the letter are covered by the top checker
       // band width: 1 voxel always, 2 often, 3 sometimes, so the inner edge of the red band is ragged (wider on the letter)
-      const band = letterish ? [1, 0.8, 0.4] : kd === KIND.LOOSE ? [0.7, 0, 0] : [0.95, 0.3, 0];
+      if (!letterish && c > 0) continue;                      // island: no red along the tops' edges (the top checker shows there)
+      const band = letterish ? [1, 0.8, 0.4] : [1, 0, 0];
       let hit = false;
       for (let d = 1; d <= 3 && !hit; d++) {
-        if (!(band[d - 1] > 0) || hash3(i, j, k, 36 + d) >= band[d - 1]) continue;
+        if (!(band[d - 1] > 0) || (letterish && hash3(i, j, k, 36 + d) >= band[d - 1])) continue;
         let inner = true;                                     // the d-1 voxels toward the edge are part of this same face
         for (let q = 1; q < d && inner; q++) inner = solid(i + a * q, j + bb * q, k + c * q) && !solid(i + a * q + FACE_DIRS[f][0], j + bb * q + FACE_DIRS[f][1], k + c * q + FACE_DIRS[f][2]);
         if (inner && silhouette(i + a * (d - 1), j + bb * (d - 1), k + c * (d - 1), a, bb, c, 1)) hit = true;
       }
       if (hit) {
         red = letterish ? vnoise(c === 0 ? k : (a !== 0 ? i : j), a + 2 * bb + 4 * c, f, 5, 35) > 0.14
-          : c < 0 ? hash3(i, j, k, 43) < 0.8                                  // island: bottom tips stay red
-          : vnoise(k + i * 3, j + 7 * (a + 2 * bb), f, 2.5, 44) > 0.5;       // island sides: patchy, not a continuous border
+          : c < 0 ? true                                                      // island: the bottom edge of each column tip is red
+          : hash3(b, a + 2 * bb + 5, f, 44) < 0.55 && cz(k) < 0;           // island sides: whole vertical edge lines, on or off per column edge
         if (red) break;
       }
     }
@@ -296,7 +301,11 @@ function faceColour(i, j, k, f) {
 
   // red catching the underside edges of the island's stepped columns and dents: the inner red lines of the reference
   if (!red && f > 0 && (kd === KIND.ISLAND || kd === KIND.LOOSE) && cz(k) < -2) {
-    if (blk && blk.column && !solid(i, j, k - 1)) red = hash3(i, j, k, 41) < 0.4;    // a ledge of a stepped column: nothing below this voxel
+    // vertical red lines down the column edges that face a gap (between columns too), whole edge on or off per column
+    if (blk && blk.column) for (const [a2, b2, c2] of IN_PLANE[f]) {
+      if (c2 !== 0 || solid(i + a2, j + b2, k)) continue;
+      if (hash3(b, a2 + 2 * b2 + 5, f, 45) < 0.38) { red = true; break; }
+    }
   }
 
   // spill from the gate onto the frame and the floor just outside it
