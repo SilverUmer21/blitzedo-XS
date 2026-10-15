@@ -1,0 +1,293 @@
+/* Blitzedo home. Tokens follow DESIGN.md's provisional palette. */
+/* Inter Tight (SIL OFL, self-hosted): a tighter cut of Inter that suits the large, tightly composed headline. */
+@font-face {
+  font-family: "Inter Tight";
+  src: url("../assets/fonts/inter-tight-latin-wght-normal.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --bg: #090A08;
+  --charcoal: #20211F;
+  --ivory: #FBF5EB;          /* the reference's warm ivory */
+  --ivory-muted: rgba(244, 240, 230, 0.72);
+  --rule: rgba(244, 240, 230, 0.14);
+  --red: #AE1212;          /* the reference button's deep crimson */
+  --red-hover: #C4161B;
+  --red-press: #8F0E0E;
+
+  --gutter: clamp(20px, 4.05vw, 72px);
+  --header-h: clamp(64px, 5.45vw, 96px);
+  --font: "Inter Tight", "Inter", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ivory);
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+a { color: inherit; text-decoration: none; }
+
+:focus-visible {
+  outline: 2px solid var(--ivory);
+  outline-offset: 4px;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--gutter);
+  top: 8px;
+  z-index: 10;
+  padding: 10px 14px;
+  background: var(--ivory);
+  color: var(--bg);
+  transform: translateY(-200%);
+}
+.skip-link:focus { transform: none; }
+
+.icon { display: block; flex: none; }
+
+/* ---------- header ---------- */
+.site-header {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-h);
+  margin: 0 var(--gutter);
+  border-bottom: 1px solid var(--rule);
+}
+
+.wordmark {
+  font-weight: 700;
+  font-size: clamp(30px, 3.4vw, 56px);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  padding-bottom: 0.08em;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(28px, 3.2vw, 56px);
+  font-size: clamp(17px, 1.5vw, 24px);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.site-nav a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 8px 0;
+  color: var(--ivory);
+}
+
+/* The underline marks the current page; the Home page has no active item. */
+.site-nav a::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 2px;
+  height: 2px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.24s ease;
+}
+.site-nav a:hover::after,
+.site-nav a:focus-visible::after,
+.site-nav a[aria-current="page"]::after { transform: scaleX(1); }
+
+.site-nav__contact .icon { width: 0.78em; height: 0.78em; transition: transform 0.24s ease; }
+.site-nav__contact:hover .icon,
+.site-nav__contact:focus-visible .icon { transform: translate(2px, -2px); }
+.site-nav__contact::after { right: 1.28em; }
+
+.menu-toggle { display: none; }
+
+/* ---------- hero ---------- */
+.hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 4.9fr);
+  align-items: center;
+  min-height: calc(100vh - var(--header-h));
+  min-height: calc(100svh - var(--header-h));
+  margin: 0 var(--gutter);
+  gap: 0;
+}
+
+.hero__copy {
+  position: relative;
+  z-index: 2;
+  align-self: center;
+  /* centre the headline + action on the viewport, as in the concept */
+  padding-bottom: var(--header-h);
+}
+
+.hero__title {
+  margin: 0;
+  font-weight: 700;
+  font-size: clamp(80px, 14.6vw, 268px);
+  line-height: 0.84;
+  letter-spacing: -0.035em;
+  margin-left: calc(0.75vw - 0.045em);
+  white-space: nowrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(40px, 4.8vw, 84px);
+  margin-top: clamp(36px, 4.2vw, 72px);
+  margin-left: 0.75vw;
+  min-width: clamp(240px, 24vw, 420px);
+  min-height: clamp(56px, 4.5vw, 78px);
+  padding: 0 clamp(20px, 1.9vw, 32px);
+  background: var(--red);
+  color: var(--ivory);
+  border-radius: 4px;
+  font-size: clamp(19px, 2vw, 34px);
+  font-weight: 400;
+  letter-spacing: 0;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.btn .icon { width: 1.05em; height: auto; transition: transform 0.24s ease; }
+.btn:hover { background: var(--red-hover); }
+.btn:hover .icon, .btn:focus-visible .icon { transform: translateX(5px); }
+.btn:active { background: var(--red-press); }
+.btn:focus-visible { outline: 2px solid var(--ivory); outline-offset: 4px; }
+
+.hero__art {
+  position: relative;
+  margin: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  /* let the island read slightly larger than its column, like the concept */
+  margin-right: calc(var(--gutter) * -0.35);
+}
+
+.hero__stage {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+/* the explorer: frames of the 3D voxel figure rendered by the build (js/explorer.js places and animates them) */
+.explorer {
+  position: absolute;
+  background: url("../assets/explorer.png") 0 0 no-repeat;
+  image-rendering: pixelated;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.explorer.is-ready { opacity: 1; }
+
+.hero__sculpture {
+  display: block;
+  width: auto;
+  height: calc(100svh - var(--header-h) - 8px);
+  max-width: 100%;
+  object-fit: contain;
+  object-position: right center;
+  /* the artwork is rendered on pure black; screen blending lets the page background show through */
+  mix-blend-mode: screen;
+}
+
+/* ---------- tablet / mobile ---------- */
+@media (max-width: 900px) {
+  :root { --header-h: 64px; --gutter: 20px; }
+
+  .wordmark { font-size: 30px; }
+
+  .menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    padding: 0 2px 0 12px;
+    background: none;
+    border: 0;
+    color: var(--ivory);
+    font: inherit;
+    font-size: 17px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .menu-toggle__bars { display: grid; gap: 6px; width: 22px; }
+  .menu-toggle__bars i { display: block; height: 2px; background: currentColor; transition: transform 0.2s ease; }
+  .menu-toggle[aria-expanded="true"] .menu-toggle__bars i:first-child { transform: translateY(4px) rotate(45deg); }
+  .menu-toggle[aria-expanded="true"] .menu-toggle__bars i:last-child { transform: translateY(-4px) rotate(-45deg); }
+
+  .site-nav {
+    position: absolute;
+    left: 0; right: 0; top: 100%;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 6px 0 14px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--rule);
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .site-nav.is-open { display: flex; }
+  .site-nav a { min-height: 56px; padding: 0; justify-content: space-between; }
+  .site-nav a::after { display: none; }
+  .site-nav a + a { border-top: 1px solid var(--rule); }
+  .site-nav__contact .icon { width: 20px; height: 20px; }
+
+  /* mobile: headline, then the sculpture lifted up, then the action at the bottom of the first screen */
+  .hero {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100svh - var(--header-h));
+    padding: clamp(28px, 7vw, 56px) 0 20px;
+  }
+  .hero__copy { display: contents; }
+  .hero__title { order: 1; }
+  .hero__art { order: 2; }
+  .btn { order: 3; margin-top: auto !important; }
+  .hero__title { font-size: clamp(82px, 24vw, 190px); line-height: 0.82; margin-left: -0.045em; }
+  .btn {
+    width: 100%;
+    min-height: 60px;
+    margin-left: 0;
+    font-size: 21px;
+  }
+
+  .hero__art {
+    margin: 4px calc(var(--gutter) * -0.4) 16px;
+    justify-content: center;
+  }
+  .hero__stage { width: auto; }
+  .hero__sculpture {
+    width: auto;
+    max-width: 100%;
+    height: max(280px, calc(100svh - var(--header-h) - 2 * 0.82 * 24vw - 120px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+}

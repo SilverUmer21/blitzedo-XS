@@ -1,0 +1,10 @@
+{
+  "name": "blitzedo-tools",
+  "private": true,
+  "description": "Build-time tools for the Blitzedo site (sculpture renderer).",
+  "devDependencies": {
+    "playwright": "1.56.1",
+    "three": "^0.170.0",
+    "@fontsource-variable/inter-tight": "^5.3.0"
+  }
+}
