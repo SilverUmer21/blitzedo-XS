@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chip concept</title>
+<style>
+  @font-face { font-family: "Inter Tight"; src: url("../../assets/fonts/inter-tight-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; }
+  html, body { margin: 0; background: #090A08; }
+  #sheet { display: block; width: 100%; max-width: 1800px; height: auto; margin: 0 auto; }
+  #gl { display: none; }
+</style>
+</head>
+<body>
+<canvas id="sheet" width="1800" height="1640"></canvas>
+<canvas id="gl"></canvas>
+<script type="module">
+// Concept sheet for Chip, rendered live with the island's own modules: turnaround, key poses, and Chip on the island
+// for scale. Open with ?save under tools/poster/capture.mjs to write the sheet as a PNG.
+import * as THREE from '../../island/assets/vendor/three.module.js';
+import {createWorld} from '../../island/world.js?v=embers-13';
+import {loadStoneTexture} from '../../island/stone.js?v=embers-13';
+import {createChip, poseChip, CHIP_POSES} from '../../island/chip.js';
+
+const W = 1800, H = 1640, M = 60;
+const COLORS = {bg: '#090A08', panel: '#0E0F0D', rule: 'rgba(244,240,230,.14)', ivory: '#F4F0E6', muted: 'rgba(244,240,230,.62)', red: '#E50D0A'};
+const DIR = new THREE.Vector3(14.2, 10.4, 19).normalize();   // the island camera's direction
+const FACING = Math.atan2(DIR.x, DIR.z);                      // Chip's rotation that faces the viewer
+
+await document.fonts.load('700 72px "Inter Tight"');
+await document.fonts.load('500 20px "Inter Tight"');
+const stoneMap = await loadStoneTexture();
+
+const gl = document.querySelector('#gl');
+const renderer = new THREE.WebGLRenderer({canvas: gl, antialias: true, preserveDrawingBuffer: true});
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.setPixelRatio(1);
+renderer.setSize(W, H, false);
+renderer.setScissorTest(true);
+renderer.setClearColor(COLORS.bg, 1);
+renderer.clear();
+
+// Studio scene: Chip on a single island capstone, far from the gate's red light, so its own colours read neutrally.
+const studio = new THREE.Scene();
+const SPOT = new THREE.Vector3(-7, 0, 7);
+const chip = createChip(stoneMap);
+chip.group.position.copy(SPOT);
+studio.add(chip.group);
+
+// Island scene: the real island in its quiet first frame, with two Chips placed on it.
+const island = new THREE.Scene();
+const world = createWorld();
+world.world.updateMatrixWorld(true);
+world.applyStoneTexture(stoneMap);
+world.animate(0, false);
+island.add(world.world);
+const scale = world.world.scale;                       // world.js scales the island; place Chips in scaled space
+const onTopStep = createChip(stoneMap);
+onTopStep.group.position.set(-1.93 * scale.x, (4.14 + .0625) * scale.y, .66 * scale.z);
+onTopStep.group.rotation.y = FACING - .35;
+poseChip(onTopStep, CHIP_POSES.carry);
+const atGate = createChip(stoneMap);
+atGate.group.position.set(1.62 * scale.x, .035 * scale.y, .98 * scale.z);
+atGate.group.rotation.y = FACING - .2;
+poseChip(atGate, {look: [-.95, .25], lean: .04, arms: .2});
+island.add(onTopStep.group, atGate.group);
+
+function camera(target, viewHeight, aspect) {
+  const cam = new THREE.OrthographicCamera(-viewHeight * aspect / 2, viewHeight * aspect / 2, viewHeight / 2, -viewHeight / 2, .1, 80);
+  cam.position.copy(target).addScaledVector(DIR, 30);
+  cam.lookAt(target);
+  cam.updateMatrixWorld();
+  return cam;
+}
+
+const panels = [];
+function panel(x, y, w, h, label, draw) { panels.push({x, y, w, h, label}); renderer.setViewport(x, H - y - h, w, h); renderer.setScissor(x, H - y - h, w, h); renderer.setClearColor(COLORS.panel, 1); renderer.clear(); draw(w / h); }
+
+const chipTarget = SPOT.clone().add(new THREE.Vector3(0, .36, 0));
+const turnaround = [['Front', FACING], ['Three-quarter', FACING - Math.PI / 4], ['Side', FACING - Math.PI / 2], ['Back', FACING + Math.PI]];
+const rowTop = [250, 720, 1190];
+let x = M;
+for (const [label, angle] of turnaround) {
+  panel(x, rowTop[0], 405, 400, label, aspect => { poseChip(chip, CHIP_POSES.idle); chip.group.rotation.y = angle; renderer.render(studio, camera(chipTarget, 1.02, aspect)); });
+  x += 405 + 20;
+}
+x = M;
+const poses = [['Idle', 'idle', 'Looks around, breathes'], ['Ready', 'ready', 'Anticipation: squash, arms back'], ['Hop', 'hop', 'Stretch, tuft lags behind'], ['Land', 'land', 'Squash, dust, tuft overshoots'], ['Carry', 'carry', 'Balances the ember on its cap']];
+for (const [label, key, note] of poses) {
+  panel(x, rowTop[1], 320, 400, label + '|' + note, aspect => { poseChip(chip, CHIP_POSES[key]); chip.group.rotation.y = FACING - .45; renderer.render(studio, camera(chipTarget.clone().add(new THREE.Vector3(0, key === 'hop' ? .12 : 0, 0)), 1.12, aspect)); });
+  x += 320 + 20;
+}
+panel(M, rowTop[2], 830, 400, 'Top step|Carrying the ember down to the gate', aspect => renderer.render(island, camera(onTopStep.group.position.clone().add(new THREE.Vector3(.35, -.15, 0)), 2.6, aspect)));
+panel(M + 850, rowTop[2], 830, 400, 'At the gate|Glancing in; the gate light falls on its side', aspect => renderer.render(island, camera(atGate.group.position.clone().add(new THREE.Vector3(-.45, .55, -.2)), 2.2, aspect)));
+
+// Compose the sheet: the WebGL panels, then type.
+const sheet = document.querySelector('#sheet'), ctx = sheet.getContext('2d');
+ctx.fillStyle = COLORS.bg; ctx.fillRect(0, 0, W, H);
+ctx.drawImage(gl, 0, 0);
+ctx.fillStyle = COLORS.ivory;
+ctx.font = '700 84px "Inter Tight"';
+ctx.letterSpacing = '-3px';
+ctx.fillText('Chip', M - 4, 120);
+ctx.letterSpacing = '0px';
+ctx.font = '500 24px "Inter Tight"';
+ctx.fillStyle = COLORS.muted;
+ctx.fillText('The island keeper who lights the gate · concept v1', M, 165);
+ctx.textAlign = 'right';
+ctx.fillText('blitzedo', W - M, 120);
+ctx.textAlign = 'left';
+ctx.fillStyle = COLORS.red; ctx.fillRect(M, 190, 40, 3);
+const sections = [['Turnaround', rowTop[0]], ['Poses', rowTop[1]], ['On the island', rowTop[2]]];
+ctx.font = '700 22px "Inter Tight"';
+for (const [title, top] of sections) { ctx.fillStyle = COLORS.ivory; ctx.fillText(title, M, top - 16); }
+for (const p of panels) {
+  ctx.strokeStyle = COLORS.rule; ctx.lineWidth = 1; ctx.strokeRect(p.x + .5, p.y + .5, p.w - 1, p.h - 1);
+  const [label, note] = p.label.split('|');
+  ctx.font = '600 19px "Inter Tight"'; ctx.fillStyle = COLORS.ivory; ctx.fillText(label, p.x + 16, p.y + p.h - (note ? 40 : 18));
+  if (note) { ctx.font = '400 15px "Inter Tight"'; ctx.fillStyle = COLORS.muted; ctx.fillText(note, p.x + 16, p.y + p.h - 18); }
+}
+ctx.font = '400 15px "Inter Tight"'; ctx.fillStyle = COLORS.muted;
+ctx.fillText('Rendered live with the island’s own stone atlases and lighting shaders (island/chip.js). Proportions: about two stair rises tall.', M, H - 28);
+
+if (new URLSearchParams(location.search).has('save')) {
+  const blob = await new Promise(r => sheet.toBlob(r, 'image/png'));
+  const response = await fetch('/__poster', {method: 'POST', body: blob});
+  document.title = response.ok ? 'saved' : 'save failed';
+} else document.title = 'ready';
+</script>
+</body>
+</html>
