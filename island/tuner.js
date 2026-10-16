@@ -1,6 +1,6 @@
 // Stair tuning panel, for finding the red of the stair treads by eye. Opens only with ?tune in the address, never for
 // visitors. It patches the live red shader at runtime and touches only the twenty stair treads (picked out by their
-// position in world.js); the crown, island and gate keep the approved red. The island sources and the loading artwork's
+// position in world.js; their climbing light is already baked in at 0.87); the crown, island and gate keep the approved red. The island sources and the loading artwork's
 // provenance stay untouched. Once a look is chosen, its values get baked into the island and the artwork regenerated.
 
 import * as THREE from './assets/vendor/three.module.js';
@@ -14,7 +14,7 @@ const CONTROLS = [
   {key: 'glow', label: 'Glow', hint: 'Light the treads give off', min: 0, max: 8, value: 1, format: 'percent'},
   {key: 'speckle', label: 'Wear', hint: 'Clean ← → the dark chips in the stone', min: 0, max: 1, value: 1, format: 'percent'},
   {key: 'edge', label: 'Lit edge', hint: 'A bright pixel lip on each step’s edge', min: 0, max: 1.5, value: 0, format: 'percent'},
-  {key: 'fade', label: 'Climb', hint: 'Lit from the top ← → lit from the bottom', min: -1, max: 1, value: 0, format: 'climb'}
+  {key: 'fade', label: 'Climb', hint: 'Light falls down ← → light climbs up', min: -1, max: 1, value: 0, format: 'climb'}
 ];
 const defaults = {...Object.fromEntries(CONTROLS.map(c => [c.key, c.value])), color: ATLAS_RED};
 
@@ -131,7 +131,7 @@ export function mountTuner(world, render) {
   const formats = {
     percent: x => Math.round(x * 100) + '%',
     hue: x => x === 0 ? 'neutral' : (x < 0 ? 'crimson ' : 'scarlet ') + Math.round(Math.abs(x) * 100),
-    climb: x => x === 0 ? 'even' : (x < 0 ? 'top ' : 'bottom ') + Math.round(Math.abs(x) * 100)
+    climb: x => x === 0 ? 'even' : (x < 0 ? 'falls ' : 'climbs ') + Math.round(Math.abs(x) * 100)
   };
   const inputs = {};
   for (const c of CONTROLS) {

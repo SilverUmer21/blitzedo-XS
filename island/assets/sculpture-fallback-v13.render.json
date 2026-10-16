@@ -1,17 +1,14 @@
 {
-  "renderer": "OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2",
-  "artworkSha256": "ea48b2b890ff8e56d2d46102cc4d43d76f833d012639ac12abf400e3ef816de8",
+  "renderer": "Browser WebGL via tools/poster/capture.html (live island modules, 2x render, premultiplied Lanczos downsample)",
+  "artworkSha256": "aafa63f3a213fe8dd9ca85171d3e5cb1b2634dcd8759f57954a45a05fab8f217",
   "inputs": {
-    "dist/world.js": "731b62a0b4ccdda2063d0d7cbb08fbe53edd89c2733adc9f92aa596bf2b1dbb5",
-    "dist/stone.js": "73f0e91bdb3fbb4d341924ee4b16d9ca8294545d3a130803e4831832082b388b",
-    "dist/reference-shading.js": "86840206db7bc16496ca740537c1c580331d2a095056f3c04c86d8a323ff7968",
-    "dist/composition.js": "5907dd0615c0404ee4d3778489799df05ad34615490dcfef61e1e58cf07d911f",
-    "dist/fuse.js": "f7586c76bea1ec17f0966d6c492354141480a27b42d6bf448a3a3813d30ce465",
-    "dist/brand-motion.js": "4bb4cc5d223c43164a35d289d48fb663e979988fa387fd6cbe368c62a723b01f",
-    "tools/export-artwork.mjs": "dcbe722624ef9ffa1ac729f88d6acc1786e911cd40892b2a110fcf3e095e50f8",
-    "tools/render-artwork.py": "085c9acd6afa68a1558853ec5b96c17932b6ba0c6d87466731e8602b6c69d660",
-    "dist/assets/pixel-stone-v9.png": "95100fbfa69d8487878dc55e346ea9a0ae7eeb6c02ad36423ef8be4a50b15c53",
-    "dist/assets/pixel-red-v9.png": "d1bb57a72de556892b01e0c159eeb0e2a86061c095170d64feae12e97eabe3d3",
-    "dist/assets/pixel-edge-v9.png": "268adb4d7001eb5a7152a9875bec5713a6ed5bc1786b30bd0d8525acf3db00d9"
+    "island/world.js": "65398062d1b451a09cb1d88b63b8b725fc6ba53def5bd0592012431a3885ad67",
+    "island/stone.js": "73f0e91bdb3fbb4d341924ee4b16d9ca8294545d3a130803e4831832082b388b",
+    "island/reference-shading.js": "86840206db7bc16496ca740537c1c580331d2a095056f3c04c86d8a323ff7968",
+    "island/composition.js": "5907dd0615c0404ee4d3778489799df05ad34615490dcfef61e1e58cf07d911f",
+    "island/fuse.js": "f7586c76bea1ec17f0966d6c492354141480a27b42d6bf448a3a3813d30ce465",
+    "island/assets/pixel-stone-v9.png": "95100fbfa69d8487878dc55e346ea9a0ae7eeb6c02ad36423ef8be4a50b15c53",
+    "island/assets/pixel-red-v9.png": "d1bb57a72de556892b01e0c159eeb0e2a86061c095170d64feae12e97eabe3d3",
+    "island/assets/pixel-edge-v9.png": "268adb4d7001eb5a7152a9875bec5713a6ed5bc1786b30bd0d8525acf3db00d9"
   }
 }

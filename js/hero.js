@@ -15,8 +15,6 @@
   import('../island/scene.js').catch(function (error) {
     console.warn('The live sculpture module could not load.', error);
     stage.classList.remove('is-3d-ready');
-    var motion = stage.querySelector('.motion-toggle');
-    if (motion) motion.hidden = true;
     if (notice) notice.hidden = false;
   });
 })();

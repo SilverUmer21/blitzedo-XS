@@ -5,7 +5,6 @@ import { sculptureCamera, frameSculpture } from './composition.js?v=embers-13';
 
 const container = document.querySelector('.hero__stage');
 const canvas = document.querySelector('#sculpture-canvas');
-const motionButton = document.querySelector('.motion-toggle');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const compact = matchMedia('(max-width: 760px)');
 let renderer;
@@ -20,7 +19,6 @@ function fallback() {
   if(errorNotice)errorNotice.hidden=false;
   cancelAnimationFrame(frame);
   container.classList.remove('is-3d-ready');
-  motionButton.hidden = true;
   renderer?.dispose();
 }
 
@@ -59,15 +57,11 @@ try {
   },{passive:true});
   document.querySelector('.hero').addEventListener('pointerleave',()=>pointer.set(0,0));
   function updateMotion() {
-    motionButton.setAttribute('aria-pressed',String(paused));
-    motionButton.setAttribute('aria-label',paused?'Resume hero animation':'Pause hero animation');
-    motionButton.firstElementChild.textContent=paused?'▷':'Ⅱ';
     if(paused)pointer.set(0,0);
   }
-  motionButton.addEventListener('click',()=>{paused=!paused;updateMotion();});
   reducedMotion.addEventListener('change',event=>{paused=event.matches;updateMotion();});
   canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();fallback();});
-  resize();model.animate(0,!paused);motionButton.hidden=true;updateMotion();
+  resize();model.animate(0,!paused);updateMotion();
   let slowFrames=0,measured=0;
   function tick(now) {
     frame=requestAnimationFrame(tick);
@@ -92,7 +86,7 @@ try {
       model.applyStoneTexture(stoneMap);
       materialReady=true;model.animate(0,!paused);
       renderer.render(scene,camera);
-      container.classList.add('is-3d-ready');if(errorNotice)errorNotice.hidden=true;motionButton.hidden=false;updateMotion();
+      container.classList.add('is-3d-ready');if(errorNotice)errorNotice.hidden=true;updateMotion();
       // ?tune opens the red tuning panel (development only).
       if(/[?&]tune\b/.test(globalThis.location?.search||''))import('./tuner.js').then(t=>t.mountTuner(model.world,()=>{if(materialReady)renderer.render(scene,camera);}));
     } catch(error) {

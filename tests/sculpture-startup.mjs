@@ -19,10 +19,10 @@ function start({renderFails=false}={}){
   run({...T,WebGLRenderer:Renderer},()=>model,()=>pending,sculptureCamera,frameSculpture,document,()=>({matches:false,addEventListener(){}}),Observer,Observer,1,()=>1,()=>{}, {warn(){}});
   return {classes,notice,motion,resolve,reject,get renders(){return renders;},get applied(){return applied;}};
 }
-const stalled=start();assert(!stalled.classes.has('is-3d-ready'));assert.equal(stalled.renders,0);assert.equal(stalled.motion.hidden,true);
+const stalled=start();assert(!stalled.classes.has('is-3d-ready'));assert.equal(stalled.renders,0);
 stalled.reject(new Error('texture fetch failed'));await Promise.resolve();await Promise.resolve();assert(!stalled.classes.has('is-3d-ready'));assert.equal(stalled.notice.hidden,false);
-const loaded=start();loaded.resolve(new T.Texture());await Promise.resolve();await Promise.resolve();assert.equal(loaded.applied,1);assert(loaded.classes.has('is-3d-ready'));assert.equal(loaded.motion.hidden,false);assert(loaded.renders>0);
-const broken=start({renderFails:true});broken.resolve(new T.Texture());await Promise.resolve();await Promise.resolve();assert(!broken.classes.has('is-3d-ready'));assert.equal(broken.notice.hidden,false);assert.equal(broken.motion.hidden,true);
+const loaded=start();loaded.resolve(new T.Texture());await Promise.resolve();await Promise.resolve();assert.equal(loaded.applied,1);assert(loaded.classes.has('is-3d-ready'));assert(loaded.renders>0);
+const broken=start({renderFails:true});broken.resolve(new T.Texture());await Promise.resolve();await Promise.resolve();assert(!broken.classes.has('is-3d-ready'));assert.equal(broken.notice.hidden,false);
 const actual=createWorld();const texture=new T.Texture();assert(actual.applyStoneTexture(texture)>1);actual.world.traverse(o=>{if(o.isMesh&&o.material.map)assert.equal(o.material.map,texture);});
 console.log('PASS: pending textures keep the finished artwork; failed textures expose retry; only the fully textured render is revealed; GPU failure keeps the artwork.');
 
@@ -39,11 +39,9 @@ console.log('PASS: stone, red and alpha edge atlases reach the live reference sh
 
 // Prevent reintroducing a poster made with different materials, geometry or lighting.
 const manifest=JSON.parse(fs.readFileSync(new URL('../island/assets/sculpture-fallback-v13.render.json',import.meta.url)));
-// The manifest was written in the source export (paths under dist/); its logo module and render tools were not ported here,
-// as they do not change the sculpture's pixels. Every sculpture input must still match byte for byte.
+// tools/poster regenerates the artwork from these exact sources; every input must still match byte for byte.
 for(const [path,expected]of Object.entries(manifest.inputs)){
-  if(!path.startsWith('dist/')||path==='dist/brand-motion.js')continue;
-  const data=fs.readFileSync(new URL('../island/'+path.slice(5),import.meta.url));
+  const data=fs.readFileSync(new URL('../'+path,import.meta.url));
   assert.equal(createHash('sha256').update(data).digest('hex'),expected,`${path} changed: regenerate the poster with the runtime shaders`);
 }
 assert.equal(createHash('sha256').update(fs.readFileSync(new URL('../island/assets/sculpture-fallback-v13.webp',import.meta.url))).digest('hex'),manifest.artworkSha256);

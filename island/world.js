@@ -38,7 +38,7 @@ export function createWorld({shadows = true, stoneMap = null} = {}) {
     if(g!==geometry)g.dispose();
   }
   const swatches=Array.from({length:7},(_,i)=>new THREE.Color(0x82817d).multiplyScalar(.85+i*.035));
-  function add(geometry,material=dark,shade=null) {
+  function add(geometry,material=dark,shade=null,tint=1) {
     if(geometry.index){const source=geometry;geometry=source.toNonIndexed();source.dispose();}
     const shadeColor=shade||swatches[Math.floor(rand()*swatches.length)];
     const tile=Math.floor(rand()*16),redTile=Math.floor(rand()*8);
@@ -51,7 +51,7 @@ export function createWorld({shadows = true, stoneMap = null} = {}) {
     for(let i=0;i<attrs.position.count;i+=3){
       const top=(attrs.normal.getY(i)+attrs.normal.getY(i+1)+attrs.normal.getY(i+2))/3>.58;
       const faceMaterial=material===red&&top?red:dark;
-      const color=faceMaterial===red?new THREE.Color(0xffffff).multiplyScalar(.94):shadeColor;
+      const color=faceMaterial===red?new THREE.Color(0xffffff).multiplyScalar(.94*tint):shadeColor;
       if(!batches.has(faceMaterial))batches.set(faceMaterial,[]);
       const list=batches.get(faceMaterial);
       // Store compact arrays; static faces are merged into two draw calls below.
@@ -62,7 +62,7 @@ export function createWorld({shadows = true, stoneMap = null} = {}) {
     }
     geometry.dispose();stoneCount++;
   }
-  function polygon(points,z,depth,material=dark,bevel=.006){
+  function polygon(points,z,depth,material=dark,bevel=.006,tint=1){
     if(points.length<3)return;
     // Remove redundant edge vertices, then notch occasional edges into broken stone.
     const clean=points.filter((p,i)=>{const a=points[(i+points.length-1)%points.length],b=points[(i+1)%points.length];return Math.abs((p[0]-a[0])*(b[1]-p[1])-(p[1]-a[1])*(b[0]-p[0]))>.000005;});
@@ -87,12 +87,12 @@ export function createWorld({shadows = true, stoneMap = null} = {}) {
     }
     // Only primary exposed masonry receives dense relief; island fragments retain crisp cuts.
     if(depth>.7&&size.y>.40)g=fractureGeometry(g,chipped,Math.floor(rand()*10000));
-    add(g,material);return g;
+    add(g,material,null,tint);return g;
   }
-  function slab(x,y,z,w,h,d,material=dark,chip=.023){
+  function slab(x,y,z,w,h,d,material=dark,chip=.023,tint=1){
     const a=chip*(.5+rand()),b=chip*(.5+rand());
     const pts=[[x-w/2+a,y-h/2],[x+w/2-b,y-h/2],[x+w/2,y-h/2+b],[x+w/2,y+h/2-a],[x+w/2-a,y+h/2],[x-w/2+b,y+h/2],[x-w/2,y+h/2-b],[x-w/2,y-h/2+a]];
-    return polygon(pts,z-d/2,d,material,Math.min(.006,w*.015,h*.015));
+    return polygon(pts,z-d/2,d,material,Math.min(.006,w*.015,h*.015),tint);
   }
   // Front-elevation silhouette measured from the supplied hero and close-ups.
   // A flat crown, tight stepped shoulder, broad upright and a small lower corner.
@@ -167,7 +167,9 @@ export function createWorld({shadows = true, stoneMap = null} = {}) {
   function stairColumn(x,z,w,d,top){
     const courses=Math.max(1,Math.round(top/.55)),h=(top-.08)/courses;
     for(let j=0;j<courses;j++)slab(x,.08+(j+.5)*h,z,w-.012,h-.014,d-.014,dark,.022);
-    slab(x,top+.025,z,w+.018,.075,d+.02,red,.015);
+    // The light climbs the stairs: lower treads are dimmer, the top ones full red (tuned by eye, climb 0.87).
+    const climb=THREE.MathUtils.clamp((top+.0625-.6)/3.6,0,1);
+    slab(x,top+.025,z,w+.018,.075,d+.02,red,.015,1-.87*.75*(1-climb));
   }
   const turnZ=1.46,turnX=-1.93;
   for(let i=0;i<4;i++)stairColumn(turnX,.63+i*.28,.74,.29,4.14-i*.36);
