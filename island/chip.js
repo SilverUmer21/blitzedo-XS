@@ -9,7 +9,8 @@ import { referenceMaterial, prepareReferenceFaces } from './reference-shading.js
 const IVORY = 0xf4f0e6, INK = 0x0b0b0a, BLUSH = 0xc4161b;
 const LEG_H = .11;
 // Body stack, bottom to top: [width, height, depth]
-const LOWER = [.26, .08, .25], MID = [.36, .12, .34], MAIN = [.46, .30, .43], CAP = [.48, .05, .45];
+const LOWER = [.26, .08, .25], MID = [.36, .12, .34], MAIN = [.46, .30, .43], CAP = [.48, .05, .5];
+const CAP_Z = .042;                                       // the cap's forward brim
 const MAIN_Y = LOWER[1] + MID[1] + MAIN[1] / 2;            // centre of the main block, in body space
 const TOP_Y = LOWER[1] + MID[1] + MAIN[1] + CAP[1];        // top of the red cap
 
@@ -148,16 +149,33 @@ export function createChip(stoneMap) {
     return pivot;
   });
 
+  // The lower body tucks back a little and the cap juts forward into a brim, so the profile has a front and a back.
   let y = 0;
-  for (const [[w, h, d], red, seed] of [[LOWER, false, 7], [MID, false, 11], [MAIN, false, 17], [CAP, true, 23]]) {
+  for (const [[w, h, d], red, seed, z] of [[LOWER, false, 7, -.018], [MID, false, 11, -.012], [MAIN, false, 17, 0], [CAP, true, 23, CAP_Z]]) {
     const block = stone(w, h, d, {red, seed, chip: Math.min(.03, w * .07), materials});
-    block.position.y = y + h / 2;
+    block.position.set(0, y + h / 2, z);
     body.add(block);
     y += h;
   }
+  // Worn spots on the cap, where the charcoal shows through the red, as on the island's red tops.
+  const capY = TOP_Y - CAP[1] / 2 + .003;
+  [[-.2, .2, .075, .06], [.05, .225, .055, .034], [.222, -.04, .036, .085], [-.17, -.19, .085, .045], [.2, -.185, .05, .05], [-.226, .03, .032, .06], [-.04, -.21, .04, .032]]
+    .forEach(([x, z, w, d], i) => {
+      const wear = stone(w, CAP[1] + .002, d, {seed: 101 + i, chip: .006, materials});
+      wear.position.set(x, capY, z + CAP_Z);
+      body.add(wear);
+    });
+  // A stubby stone tail: reads in profile and from behind, and gives every hop a little follow-through.
+  const tail = new THREE.Group();
+  tail.position.set(0, LOWER[1] + MID[1] * .55, -MID[2] / 2 - .012);
+  const tailStone = stone(.1, .088, .1, {seed: 91, chip: .012, materials});
+  tailStone.position.z = -.045;
+  tail.add(tailStone);
+  tail.rotation.x = -.35;
+  body.add(tail);
   // A small red stone sticking up off-centre: Chip's tuft, and the bit that wobbles behind every hop.
   const tuft = new THREE.Group();
-  tuft.position.set(.1, TOP_Y, -.04);
+  tuft.position.set(.1, TOP_Y, -.04 + CAP_Z);
   const tuftStone = stone(.085, .085, .085, {red: true, seed: 53, chip: .012, materials});
   tuftStone.position.y = .036;
   tuft.add(tuftStone);
@@ -201,7 +219,7 @@ export function createChip(stoneMap) {
   const shapes = {
     small: [[0, 0, .03, .013]],
     flat: [[0, 0, .056, .013]],
-    smile: [[0, 0, .034, .014], [-.024, .012, .014, .014], [.024, .012, .014, .014]],
+    smile: [[0, 0, .05, .016], [-.034, .013, .018, .016], [.034, .013, .018, .016], [-.046, .026, .014, .014], [.046, .026, .014, .014]],
     o: [[0, 0, .032, .038]],
     grin: [[0, 0, .066, .04], [0, -.012, .034, .014, BLUSH]]
   };
@@ -238,7 +256,7 @@ export function createChip(stoneMap) {
   });
 
   const carried = ember();
-  carried.position.set(-.06, TOP_Y + .058, .02);
+  carried.position.set(-.06, TOP_Y + .058, .02 + CAP_Z);
   body.add(carried);
 
   const shadow = softDisc(.62, .55);
@@ -255,7 +273,7 @@ export function createChip(stoneMap) {
   }
   group.add(dust);
 
-  const chip = {group, root, body, legs, arms, eyes, mouth, tuft, ember: carried, shadow, dust, height: LEG_H + TOP_Y};
+  const chip = {group, root, body, legs, arms, eyes, mouth, tuft, tail, ember: carried, shadow, dust, height: LEG_H + TOP_Y};
   poseChip(chip);
   return chip;
 }
@@ -292,6 +310,7 @@ export function poseChip(chip, pose = {}) {
   });
   for (const [name, shape] of Object.entries(chip.mouth.userData.shapes)) shape.visible = p.mouth === name;
   chip.tuft.rotation.z = -.22 + p.tuft;
+  chip.tail.rotation.x = -.35 - p.tuft * .6;
   chip.ember.visible = p.ember;
   chip.dust.visible = p.dust;
   const s = THREE.MathUtils.clamp(1 - p.lift * 1.1, .45, 1);
