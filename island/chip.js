@@ -101,7 +101,7 @@ function softDisc(size, alpha) {
 }
 
 // The ember Chip carries to the gate: a hot pixel core, a glow and a few rising sparks.
-function ember() {
+export function createEmber() {
   const group = new THREE.Group();
   const core = flat(.11, .11, .11, 0xff2a14);
   const hot = flat(.062, .062, .114, 0xffb08a);
@@ -255,7 +255,7 @@ export function createChip(stoneMap) {
     return pivot;
   });
 
-  const carried = ember();
+  const carried = createEmber();
   carried.position.set(-.06, TOP_Y + .058, .02 + CAP_Z);
   body.add(carried);
 

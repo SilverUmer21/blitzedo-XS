@@ -1,5 +1,5 @@
 import * as THREE from './assets/vendor/three.module.js';
-import { fuseRoute, FUSE_CYCLE } from './fuse.js?v=embers-13';
+import { fuseRoute } from './fuse.js?v=embers-13';
 
 // One color pipeline for the live sculpture and its initial artwork. Deliberately
 // fixed art lighting keeps the reference's deep red rather than PBR orange glare.
@@ -36,6 +36,8 @@ uniform float contour;
 uniform float motionTime;
 uniform float motionEnabled;
 uniform float pulseEnabled;
+// Seconds since the fuse was lit (Chip drops the ember into the gate); far negative while unlit.
+uniform float fuseTime;
 varying vec2 vUv;
 varying vec3 vColor;
 varying vec3 vCenter;
@@ -89,9 +91,9 @@ void main(){
     float lane=.43+.045*floor(sin(floor(q.x*11.)*2.7+vPulseRoute.y)*2.4);
     float trace=1.-smoothstep(.035,.075,abs(q.y-lane));
     if(contour>.5)trace=1.;
-    float age=mod(motionTime,${FUSE_CYCLE.toFixed(1)})-vPulseRoute.x-q.x*.10;
+    float age=fuseTime-vPulseRoute.x-q.x*.10;
     float head=exp(-pow(age/.075,2.));
-    float tail=step(0.,age)*exp(-age*4.2)*(1.-smoothstep(.75,1.35,age));
+    float tail=step(0.,age)*exp(-max(age,0.)*4.2)*(1.-smoothstep(.75,1.35,age));
     c+=redMask*(vec3(1.4,.012,.004)*tail*.55+vec3(4.,3.3,2.8)*head*trace)*motionEnabled;
   }
   gl_FragColor=vec4(displayColor(c),1.);
@@ -103,6 +105,7 @@ varying vec2 p;
 uniform sampler2D redMap;
 uniform float motionTime;
 uniform float motionEnabled;
+uniform float fuseTime;
 void main(){
   vec2 uv=clamp(vec2((p.x+.7)/1.4,p.y/2.8),0.,1.);
   vec2 pixel=floor(uv*64.)/64.;
@@ -110,7 +113,7 @@ void main(){
   float right=clamp((1.3*(p.x+.61)-.1),0.,1.);
   vec3 c=mix(vec3(.38,.001,.002),vec3(1.,.025,.014),right);
   c*=.82+.18*photographed;
-  float phase=mod(motionTime,${FUSE_CYCLE.toFixed(1)});
+  float phase=fuseTime;
   vec2 cell=floor(p*32.)/32.;
   float breath=sin(motionTime*.82)*.035;
   float charge=smoothstep(1.8,2.25,phase)*(1.-smoothstep(2.45,3.1,phase));
@@ -125,7 +128,7 @@ void main(){
 export function referenceMaterial({map,color=0xffffff,emissive=0x000000,emissiveIntensity=0,alphaTest=0,edgeAccent=0,contour=0,side=THREE.FrontSide}={}){
   const material=new THREE.ShaderMaterial({
     vertexShader:masonryVertex,fragmentShader:masonryFragment,toneMapped:false,side,
-    uniforms:{map:{value:map},baseColor:{value:new THREE.Color(color)},emission:{value:new THREE.Color(emissive)},emissionStrength:{value:emissiveIntensity},cutout:{value:alphaTest},edgeAccent:{value:edgeAccent},contour:{value:contour},motionTime:{value:0},motionEnabled:{value:0},pulseEnabled:{value:0}}
+    uniforms:{map:{value:map},baseColor:{value:new THREE.Color(color)},emission:{value:new THREE.Color(emissive)},emissionStrength:{value:emissiveIntensity},cutout:{value:alphaTest},edgeAccent:{value:edgeAccent},contour:{value:contour},motionTime:{value:0},motionEnabled:{value:0},pulseEnabled:{value:0},fuseTime:{value:-100}}
   });
   material.color=material.uniforms.baseColor.value;
   material.emissive=material.uniforms.emission.value;

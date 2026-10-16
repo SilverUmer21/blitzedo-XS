@@ -1,5 +1,5 @@
 import * as THREE from './assets/vendor/three.module.js';
-import { fuseRoute, floatingPose } from './fuse.js?v=embers-13';
+import { fuseRoute, floatingPose, fusePhase } from './fuse.js?v=embers-13';
 import { stoneResources, fractureGeometry } from './stone.js?v=embers-13';
 import { referenceMaterial, prepareReferenceFaces, portalVertex, portalFragment } from './reference-shading.js?v=embers-13';
 
@@ -278,7 +278,7 @@ export function createWorld({shadows = true, stoneMap = null} = {}) {
   // than the left reveal, matching the two red planes seen in the close-ups.
   const doorShape=new THREE.Shape();doorShape.moveTo(-half,0);doorShape.lineTo(half,0);doorShape.lineTo(half,spring-sill);
   for(let i=0;i<=16;i++){const a=i*Math.PI/16;doorShape.lineTo(snap(half*Math.cos(a)),spring-sill+snap(half*Math.sin(a)));}doorShape.closePath();
-  const doorMaterial=new THREE.ShaderMaterial({uniforms:{redMap:{value:materials.red.map},motionTime:{value:0},motionEnabled:{value:0}},vertexShader:portalVertex,fragmentShader:portalFragment,toneMapped:false,side:THREE.DoubleSide});doorMaterial.userData.kind='portal';
+  const doorMaterial=new THREE.ShaderMaterial({uniforms:{redMap:{value:materials.red.map},motionTime:{value:0},motionEnabled:{value:0},fuseTime:{value:-100}},vertexShader:portalVertex,fragmentShader:portalFragment,toneMapped:false,side:THREE.DoubleSide});doorMaterial.userData.kind='portal';
   const door=new THREE.Mesh(new THREE.ShapeGeometry(doorShape),doorMaterial);door.position.set(center,sill,back+.025);world.add(door);
   // Thin lit lining on the right interior wall; it is occluded by the real opening.
   const revealMat=referenceMaterial({color:0xbd130b,emissive:0xff1007,emissiveIntensity:.48,map:materials.red.map});revealMat.userData.kind='lining';
@@ -305,8 +305,10 @@ export function createWorld({shadows = true, stoneMap = null} = {}) {
     });
     doorMaterial.uniforms.redMap.value=map.userData.red||map;
     const retained=new Set([map,...Object.values(map.userData)]);for(const t of old)if(t&&!retained.has(t))t.dispose();return updated.size;
-  },animate(time,motion=true){
-    for(const m of animatedMaterials){m.uniforms.motionTime.value=motion?time:0;m.uniforms.motionEnabled.value=motion?1:0;}
+  },animate(time,motion=true,fuse=null){
+    // fuse: seconds since the gate was lit (driven by Chip); without it the fuse cycles on its own as before.
+    const lit=motion?(fuse??fusePhase(time)):-100;
+    for(const m of animatedMaterials){m.uniforms.motionTime.value=motion?time:0;m.uniforms.motionEnabled.value=motion?1:0;m.uniforms.fuseTime.value=lit;}
     const pose=floatingPose(time,motion);
     world.position.set(pose.x,pose.y,0);world.rotation.z=pose.roll;
   }};

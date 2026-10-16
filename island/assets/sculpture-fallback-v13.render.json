@@ -2,9 +2,9 @@
   "renderer": "Browser WebGL via tools/poster/capture.html (live island modules, 2x render, premultiplied Lanczos downsample)",
   "artworkSha256": "aafa63f3a213fe8dd9ca85171d3e5cb1b2634dcd8759f57954a45a05fab8f217",
   "inputs": {
-    "island/world.js": "65398062d1b451a09cb1d88b63b8b725fc6ba53def5bd0592012431a3885ad67",
+    "island/world.js": "1dd3c7e861ac513f21ac434e66e9e789c58f30778b19dce18e14e7ecbd9a9dd8",
     "island/stone.js": "73f0e91bdb3fbb4d341924ee4b16d9ca8294545d3a130803e4831832082b388b",
-    "island/reference-shading.js": "86840206db7bc16496ca740537c1c580331d2a095056f3c04c86d8a323ff7968",
+    "island/reference-shading.js": "a30e770952f844da994b7597e9e64b940f796618eb069a19a5e07aebb5950a47",
     "island/composition.js": "5907dd0615c0404ee4d3778489799df05ad34615490dcfef61e1e58cf07d911f",
     "island/fuse.js": "f7586c76bea1ec17f0966d6c492354141480a27b42d6bf448a3a3813d30ce465",
     "island/assets/pixel-stone-v9.png": "95100fbfa69d8487878dc55e346ea9a0ae7eeb6c02ad36423ef8be4a50b15c53",

@@ -48,3 +48,10 @@ assert.equal(createHash('sha256').update(fs.readFileSync(new URL('../island/asse
 actual.animate(4.05,true);actual.world.traverse(o=>{if(o.isMesh&&o.material.uniforms?.motionTime){assert.equal(o.material.uniforms.motionTime.value,4.05);assert.equal(o.material.uniforms.motionEnabled.value,1);if(o.material.userData.kind==='stone')assert.equal(o.material.uniforms.pulseEnabled.value,0);}});
 actual.animate(100,false);actual.world.traverse(o=>{if(o.isMesh&&o.material.uniforms?.motionTime){assert.equal(o.material.uniforms.motionTime.value,0);assert.equal(o.material.uniforms.motionEnabled.value,0);}});assert.equal(actual.world.position.y,0);
 console.log('PASS: poster provenance matches; animation shares one clock; charcoal never enables the fuse; reduced motion restores the exact quiet frame.');
+
+// Chip lights the fuse: an explicit fuse time drives every pulse material; without one the fuse cycles on its own.
+const fuseValues=()=>{const v=new Set();actual.world.traverse(o=>{if(o.isMesh&&o.material.uniforms?.fuseTime)v.add(o.material.uniforms.fuseTime.value);});return [...v];};
+actual.animate(9,true,2.5);assert.deepEqual(fuseValues(),[2.5]);
+actual.animate(9,true);assert.deepEqual(fuseValues(),[9%6.5]);
+actual.animate(9,false,2.5);assert.deepEqual(fuseValues(),[-100]);
+console.log('PASS: the gate fuse follows Chip\'s clock, falls back to its own cycle, and stays unlit with reduced motion.');

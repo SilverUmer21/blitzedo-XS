@@ -27,7 +27,9 @@ The hero is a live Three.js scene of fractured stone: a tall b stem, a curved bo
 | `island/scene.js` | Renderer, loading handoff, frame loop, pointer parallax, reduced motion, offscreen suspension. Adapted to this page's markup. |
 | `island/world.js` | Procedural stone b, stairs, island and fragments (no model file). |
 | `island/reference-shading.js`, `island/stone.js` | Lighting shaders, texture loading and red masks. |
-| `island/fuse.js` | Gate breathing, the 6.5 s energy pulse up the stairs and around the island edges, and the floating pose. |
+| `island/fuse.js` | The energy pulse's route up the stairs and around the island edges, and the floating pose. |
+| `island/chip.js` | Chip, the island keeper: model (built from the island's own stone, atlases and shaders), poses and expressions. |
+| `island/keeper.js` | Chip alive on the island: its routine, hops, the ember, chores and visitor interactions. |
 | `island/composition.js` | The orthographic camera shared by the live scene and the loading artwork. |
 | `island/assets/` | Texture atlases, the loading artwork (`sculpture-fallback-v13.webp`) and vendored Three.js 0.180.0 with its license. |
 | `js/hero.js` | Loads the island module and shows Retry if it can't download. |
@@ -40,6 +42,10 @@ The hero is a live Three.js scene of fractured stone: a tall b stem, a curved bo
 - Red energy follows the existing red texture and edge masks; charcoal faces never light up.
 - **Stair tuning:** open `http://localhost:8000/?tune` for a panel (`island/tuner.js`) that changes only the twenty stair treads: base red, brightness, hue, saturation, glow, wear (the dark chips), a lit pixel edge on each step and the climbing light (baked at 0.87: lower treads dimmer, the top ones full red; slider values are relative to that). It patches the live red shader only; values persist in the browser, *Hold: original* compares with the approved look and *Copy values* exports them. A chosen look must then be baked into the island and the loading artwork regenerated.
 - Reduced motion and offscreen/background suspension stop the animation. There is no on-page Pause control (removed by design decision). Mobile caps the pixel ratio and lowers it if frames are slow.
-- The island has no character. A new mascot is planned; the menu footer still shows the earlier voxel explorer (`assets/explorer.png`).
+- **Chip, the island keeper** (`island/keeper.js`), arrives once the live island has taken over, so the first frame still matches the loading artwork. Its routine is the island's story: it squeezes out of the niche at the top of the stairs, takes the ember resting there, hops down the stairs carrying it, walks into the gate and tosses it in. That lights the fuse: the gate rings and the pulse climbs the stairs Chip came down. Then a few chores on the island (looking around, sweeping, sitting, a short nap if nobody moves for 20 s) and back up for the ember, which has rekindled in the niche. The gate is lit roughly every 30 s; it keeps breathing in between.
+- Visitors can hover Chip (it waves; the cursor changes), click it (it jumps; click again quickly for a twirl, even mid-stairs with the ember), click the open island (it hops there) and hover *Explore games* (it waves). With reduced motion Chip stands still by the gate and the fuse stays unlit.
+- The pulse no longer runs on a fixed loop: the shaders take a `fuseTime` uniform (seconds since lit) that Chip drives through `model.animate(time, motion, fuse)`. Without a fuse value the old 6.5 s cycle runs, so the island still works if Chip cannot load.
+- Chip's design: `design/chip/concept.html` renders the concept sheet (turnaround, poses, expressions, Chip on the island) with the live modules; `design/concepts/chip-concept-v3.png` is the approved render. The menu footer still shows the earlier voxel explorer (`assets/explorer.png`).
+- The 33 "already non-indexed" console warnings come from the island's original geometry code; they are harmless.
 - Earlier voxel island (`js/island.js`, `js/explorer.js`, `assets/sculpture*.webp`, `assets/island.bin`, `tools/sculpture-vox.js`, `tools/build-sculpture.js`, `demo.html`) is no longer on the home page and is kept for reference.
 - Links to `games.html`, `studio.html` and `contact.html` are placeholders until those pages exist.
