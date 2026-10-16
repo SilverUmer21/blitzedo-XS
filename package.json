@@ -1,0 +1,10 @@
+{
+  "name": "blitzedo-website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node serve.mjs",
+    "start": "node serve.mjs",
+    "test": "node tests/fuse-motion.mjs && node tests/sculpture-startup.mjs && node tests/check-sculpture.mjs"
+  }
+}

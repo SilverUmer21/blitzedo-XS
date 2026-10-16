@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {fuseRoute,fusePhase,floatingPose,FUSE_CYCLE} from '../island/fuse.js';
+const stairs=Array.from({length:8},(_,n)=>{const i=7-n;return fuseRoute({x:-1.93+i*.32,y:3.085-i*.36,z:1.46})[0];});
+const upper=Array.from({length:3},(_,n)=>{const i=2-n;return fuseRoute({x:-1.93,y:4.165-i*.36,z:.63+i*.28})[0];});
+const sequence=[...stairs,...upper];for(let i=1;i<sequence.length;i++)assert(sequence[i]>sequence[i-1]);
+const island=fuseRoute({x:-2.28,y:-.155,z:2.2},'contour')[0];
+assert(island>stairs[0]&&island<upper.at(-1),'The perimeter must ignite while the stair wave is still climbing');
+assert(upper.at(-1)-stairs[0]<1,'Climb should finish in under one second');
+assert.equal(fusePhase(FUSE_CYCLE),0);assert.equal(fusePhase(FUSE_CYCLE*2+.5),.5);
+assert.equal(fuseRoute({x:0,y:2,z:.62},'stone')[0],-20);
+assert(floatingPose(1.65).y>.10);assert(floatingPose(4.95).y<-.10);
+assert.deepEqual(floatingPose(1,false),{x:0,y:0,roll:0});
+console.log('PASS: stairs and perimeter overlap; climb under one second; visible float; reduced motion.');

@@ -12,14 +12,40 @@ Current phase: design documentation and reference artwork, plus the Home page. O
 
 ## Home page
 
-Open `index.html` in a browser (no build step needed).
+Run `npm run dev` and open `http://localhost:8000` (Node 18+, no install or build). The island is an ES module, so the page
+needs a local server rather than a `file://` URL. `npm test` checks the island's loading, materials, motion timing and framing.
 
-- `css/styles.css` holds the layout, tokens (`:root`) and responsive rules. The primary action uses `#C4161B`, a touch deeper than the documented `#D51D22` (hover brings it back to `#D51D22`). Type is Inter Tight (SIL OFL), self-hosted in `assets/fonts/`.
-- `assets/sculpture.webp` (and a 1000px variant) is the voxel b sculpture, with its explorer, red doorway lighting and floating foundation.
-- The sculpture is generated, not hand-drawn: `tools/sculpture-vox.js` builds it as pixel-art voxels in three.js (2.5-unit voxels, 6 per big block, one flat colour per face). See [design/SCULPTURE.md](design/SCULPTURE.md) for the method, palette, texture rules, gate light, stair path and the reference comparison. Re-render it with `cd tools && npm install && cd .. && node tools/build-sculpture.js` (set `CHROMIUM_PATH` to use an installed Chromium). If the output size changes, update the `width`/`height` on the `<img>` in `index.html`.
-- The explorer is a 3D voxel figure rendered by the build into 14 animation frames (`assets/explorer.png`) and played by `js/explorer.js`, placed on the landing via the stage's `data-explorer` attribute (written to `assets/sculpture.json`; copy into `index.html` after a rebuild).
-- The artwork is rendered on pure black and shown with `mix-blend-mode: screen`, so it blends into the page background.
+- `css/styles.css` holds the layout, tokens (`:root`) and responsive rules. The primary action uses `#AE1212` (hover `#C4161B`). Type is Inter Tight (SIL OFL), self-hosted in `assets/fonts/`.
+- The wordmark is an inline SVG (also `assets/wordmark.svg`): a pixel "blit" that assembles on load and on hover, with a red glow sweep and warm sparks, running into a smooth "zedo". Built from Inter Tight outlines by `tools/wordmark-glyphs.py` and `tools/wordmark-svg.py` (needs `pip install fonttools brotli`). `js/menu.js` drives the hover replay and the mobile menu.
+
+### The island (`island/`)
+
+The hero is a live Three.js scene of fractured stone: a tall b stem, a curved bowl with an arched red gate, a turning staircase and a floating island with hanging clusters and loose fragments. It comes from the blitzedo-home revision 13 export (`blitzedo-home-source-v13`), which holds its history, reference photos and artwork tools.
+
+| File | Responsibility |
+| --- | --- |
+| `island/scene.js` | Renderer, loading handoff, frame loop, pointer parallax, reduced motion, offscreen suspension. Adapted to this page's markup. |
+| `island/world.js` | Procedural stone b, stairs, island and fragments (no model file). |
+| `island/reference-shading.js`, `island/stone.js` | Lighting shaders, texture loading and red masks. |
+| `island/fuse.js` | The energy pulse's route up the stairs and around the island edges, and the floating pose. |
+| `island/chip.js` | Chip, the island keeper: model (built from the island's own stone, atlases and shaders), poses and expressions. |
+| `island/keeper.js` | Chip alive on the island: its routine, hops, the ember, chores and visitor interactions. |
+| `island/composition.js` | The orthographic camera shared by the live scene and the loading artwork. |
+| `island/assets/` | Texture atlases, the loading artwork (`sculpture-fallback-v13.webp`) and vendored Three.js 0.180.0 with its license. |
+| `js/hero.js` | Loads the island module and shows Retry if it can't download. |
+
+- **Keep the loading artwork and the first live frame identical.** The stage keeps the artwork's 710 × 842 proportions because the camera frames the sculpture from that aspect; the canvas stays hidden until every material has rendered. `tests/sculpture-startup.mjs` hashes the island sources and textures against the artwork's provenance manifest, so any change to geometry, shaders, camera or textures fails until the artwork is regenerated. Do not silence that check. To regenerate it (Windows is fine, Python needs Pillow):
+  1. `node tools/poster/capture.mjs poster-2x.png`, then open `http://localhost:8001/tools/poster/capture.html`. It renders the quiet first frame with the island's own modules at twice the size and saves it.
+  2. `python tools/poster/finish.py poster-2x.png` downsamples it into `island/assets/sculpture-fallback-v13.webp` and rewrites the manifest.
+  
+  This path was checked against the original Mesa render of the unchanged island: mean difference about 1/255, with only antialiasing differences on 0.7% of edge pixels.
+- Red energy follows the existing red texture and edge masks; charcoal faces never light up.
+- **Stair tuning:** open `http://localhost:8000/?tune` for a panel (`island/tuner.js`) that changes only the twenty stair treads: base red, brightness, hue, saturation, glow, wear (the dark chips), a lit pixel edge on each step and the climbing light (baked at 0.87: lower treads dimmer, the top ones full red; slider values are relative to that). It patches the live red shader only; values persist in the browser, *Hold: original* compares with the approved look and *Copy values* exports them. A chosen look must then be baked into the island and the loading artwork regenerated.
+- Reduced motion and offscreen/background suspension stop the animation. There is no on-page Pause control (removed by design decision). Mobile caps the pixel ratio and lowers it if frames are slow.
+- **Chip, the island keeper** (`island/keeper.js`), arrives once the live island has taken over, so the first frame still matches the loading artwork. Its routine is the island's story: it squeezes out of the niche at the top of the stairs, takes the ember resting there, hops down the stairs carrying it, walks into the gate and tosses it in. That lights the fuse: the gate rings and the pulse climbs the stairs Chip came down. Then a few chores on the island (looking around, sweeping, sitting, a short nap if nobody moves for 20 s) and back up for the ember, which has rekindled in the niche. The gate is lit roughly every 30 s; it keeps breathing in between.
+- Visitors can hover Chip (it waves; the cursor changes), click it (it jumps; click again quickly for a twirl, even mid-stairs with the ember), click the open island (it hops there) and hover *Explore games* (it waves). With reduced motion Chip stands still by the gate and the fuse stays unlit.
+- The pulse no longer runs on a fixed loop: the shaders take a `fuseTime` uniform (seconds since lit) that Chip drives through `model.animate(time, motion, fuse)`. Without a fuse value the old 6.5 s cycle runs, so the island still works if Chip cannot load.
+- Chip's design: `design/chip/concept.html` renders the concept sheet (turnaround, poses, expressions, Chip on the island) with the live modules; `design/concepts/chip-concept-v3.png` is the approved render. The menu footer still shows the earlier voxel explorer (`assets/explorer.png`).
+- The 33 "already non-indexed" console warnings come from the island's original geometry code; they are harmless.
+- Earlier voxel island (`js/island.js`, `js/explorer.js`, `assets/sculpture*.webp`, `assets/island.bin`, `tools/sculpture-vox.js`, `tools/build-sculpture.js`, `demo.html`) is no longer on the home page and is kept for reference.
 - Links to `games.html`, `studio.html` and `contact.html` are placeholders until those pages exist.
-- `demo.html` is a texture demo of the home page (switch between the live render, the old flat red and the pixel stone demo); it is not linked from the site.
-- The wordmark is an inline SVG (also `assets/wordmark.svg`), built from Inter Tight outlines by `tools/wordmark-glyphs.py` and `tools/wordmark-svg.py` (needs `pip install fonttools brotli`).
-- `js/island.js` draws the island live with WebGL from `assets/island.bin` (written by the build): breathing gate, sparks, a light pulse along the red edges, and blocks that burst when tapped.

@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Island poster capture</title>
+<style>body{margin:0;background:#090A08;color:#F4F0E6;font:14px system-ui;padding:16px}canvas{width:425px;height:504px;display:block;margin-top:12px}</style>
+<p id="status">Rendering…</p>
+<canvas id="c"></canvas>
+<script type="module">
+// Renders the loading artwork with the live island's own modules: the same geometry, shaders, camera, textures and the
+// quiet time-zero frame the page shows first. Drawn at twice the poster size; tools/poster/finish.py downsamples it.
+import * as THREE from '../../island/assets/vendor/three.module.js';
+import {createWorld} from '../../island/world.js?v=embers-13';
+import {loadStoneTexture} from '../../island/stone.js?v=embers-13';
+import {sculptureCamera} from '../../island/composition.js?v=embers-13';
+
+const W = 850, H = 1008, SCALE = 2;
+const status = document.querySelector('#status');
+const canvas = document.querySelector('#c');
+const renderer = new THREE.WebGLRenderer({canvas, alpha: true, antialias: true, preserveDrawingBuffer: true});
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.setPixelRatio(1);
+renderer.setSize(W * SCALE, H * SCALE, false);
+const scene = new THREE.Scene();
+const camera = sculptureCamera(W / H);
+const model = createWorld();
+scene.add(model.world);
+model.applyStoneTexture(await loadStoneTexture());
+model.animate(0, false);
+renderer.render(scene, camera);
+const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+const response = await fetch('/__poster', {method: 'POST', body: blob});
+status.textContent = response.ok ? 'Saved ' + (await response.text()) : 'Save failed: ' + response.status;
+document.title = response.ok ? 'done' : 'failed';
+</script>
