@@ -93,6 +93,8 @@ try {
       materialReady=true;model.animate(0,!paused);
       renderer.render(scene,camera);
       container.classList.add('is-3d-ready');if(errorNotice)errorNotice.hidden=true;motionButton.hidden=false;updateMotion();
+      // ?tune opens the red tuning panel (development only).
+      if(/[?&]tune\b/.test(globalThis.location?.search||''))import('./tuner.js').then(t=>t.mountTuner(model.world,()=>{if(materialReady)renderer.render(scene,camera);}));
     } catch(error) {
       console.warn('The detailed sculpture material could not render.',error);
       fallback();
