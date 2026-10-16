@@ -7,6 +7,8 @@
   <meta name="description" content="Blitzedo is a small game studio building worlds worth getting lost in.">
   <meta name="theme-color" content="#090A08">
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="preload" as="image" href="island/assets/sculpture-fallback-v13.webp" fetchpriority="high">
+  <link rel="modulepreload" href="island/assets/vendor/three.module.js">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -44,21 +46,21 @@
       </div>
 
       <figure class="hero__art">
-        <div class="hero__stage" data-explorer="0.28578 0.13667 0.14725 0.16426 14">
+        <div class="hero__stage">
+          <canvas id="sculpture-canvas" aria-hidden="true"></canvas>
           <img class="hero__sculpture"
-            src="assets/sculpture.webp"
-            srcset="assets/sculpture-1000.webp 1000w, assets/sculpture.webp 2180w"
-            sizes="(max-width: 900px) 100vw, 46vw"
-            width="2180" height="2356"
-            alt="A lowercase b built from small charcoal blocks, floating on a rocky island. A stairway climbs from a red-lit doorway in the bowl to a tiny ivory explorer in a red scarf."
+            src="island/assets/sculpture-fallback-v13.webp"
+            width="850" height="1008"
+            alt="A lowercase b built from dark fractured stone blocks, floating on a rocky island. Red light catches the exposed edges, the arched doorway and a turning staircase."
             fetchpriority="high" decoding="async">
+          <button class="motion-toggle" type="button" aria-label="Pause hero animation" aria-pressed="false" hidden><span aria-hidden="true">Ⅱ</span></button>
+          <div class="scene-error" role="status" hidden><span>3D couldn’t start.</span> <button class="retry-scene" type="button">Retry</button></div>
         </div>
       </figure>
     </section>
   </main>
 
   <script src="js/menu.js" defer></script>
-  <script src="js/explorer.js" defer></script>
-  <script src="js/island.js" defer></script>
+  <script src="js/hero.js" defer></script>
 </body>
 </html>

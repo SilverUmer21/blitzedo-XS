@@ -12,14 +12,29 @@ Current phase: design documentation and reference artwork, plus the Home page. O
 
 ## Home page
 
-Open `index.html` in a browser (no build step needed).
+Run `npm run dev` and open `http://localhost:8000` (Node 18+, no install or build). The island is an ES module, so the page
+needs a local server rather than a `file://` URL. `npm test` checks the island's loading, materials, motion timing and framing.
 
-- `css/styles.css` holds the layout, tokens (`:root`) and responsive rules. The primary action uses `#C4161B`, a touch deeper than the documented `#D51D22` (hover brings it back to `#D51D22`). Type is Inter Tight (SIL OFL), self-hosted in `assets/fonts/`.
-- `assets/sculpture.webp` (and a 1000px variant) is the voxel b sculpture, with its explorer, red doorway lighting and floating foundation.
-- The sculpture is generated, not hand-drawn: `tools/sculpture-vox.js` builds it as pixel-art voxels in three.js (2.5-unit voxels, 6 per big block, one flat colour per face). See [design/SCULPTURE.md](design/SCULPTURE.md) for the method, palette, texture rules, gate light, stair path and the reference comparison. Re-render it with `cd tools && npm install && cd .. && node tools/build-sculpture.js` (set `CHROMIUM_PATH` to use an installed Chromium). If the output size changes, update the `width`/`height` on the `<img>` in `index.html`.
-- The explorer is a 3D voxel figure rendered by the build into 14 animation frames (`assets/explorer.png`) and played by `js/explorer.js`, placed on the landing via the stage's `data-explorer` attribute (written to `assets/sculpture.json`; copy into `index.html` after a rebuild).
-- The artwork is rendered on pure black and shown with `mix-blend-mode: screen`, so it blends into the page background.
+- `css/styles.css` holds the layout, tokens (`:root`) and responsive rules. The primary action uses `#AE1212` (hover `#C4161B`). Type is Inter Tight (SIL OFL), self-hosted in `assets/fonts/`.
+- The wordmark is an inline SVG (also `assets/wordmark.svg`): a pixel "blit" that assembles on load and on hover, with a red glow sweep and warm sparks, running into a smooth "zedo". Built from Inter Tight outlines by `tools/wordmark-glyphs.py` and `tools/wordmark-svg.py` (needs `pip install fonttools brotli`). `js/menu.js` drives the hover replay and the mobile menu.
+
+### The island (`island/`)
+
+The hero is a live Three.js scene of fractured stone: a tall b stem, a curved bowl with an arched red gate, a turning staircase and a floating island with hanging clusters and loose fragments. It comes from the blitzedo-home revision 13 export (`blitzedo-home-source-v13`), which holds its history, reference photos and artwork tools.
+
+| File | Responsibility |
+| --- | --- |
+| `island/scene.js` | Renderer, loading handoff, frame loop, pointer parallax, Pause, offscreen suspension. Adapted to this page's markup. |
+| `island/world.js` | Procedural stone b, stairs, island and fragments (no model file). |
+| `island/reference-shading.js`, `island/stone.js` | Lighting shaders, texture loading and red masks. |
+| `island/fuse.js` | Gate breathing, the 6.5 s energy pulse up the stairs and around the island edges, and the floating pose. |
+| `island/composition.js` | The orthographic camera shared by the live scene and the loading artwork. |
+| `island/assets/` | Texture atlases, the loading artwork (`sculpture-fallback-v13.webp`) and vendored Three.js 0.180.0 with its license. |
+| `js/hero.js` | Loads the island module and shows Retry if it can't download. |
+
+- **Keep the loading artwork and the first live frame identical.** The stage keeps the artwork's 710 × 842 proportions because the camera frames the sculpture from that aspect; the canvas stays hidden until every material has rendered. `tests/sculpture-startup.mjs` hashes the island sources and textures against the artwork's provenance manifest, so any change to geometry, shaders, camera or textures fails until the artwork is regenerated with the tools in the source export (Python, NumPy, Pillow and Mesa EGL; Linux-friendly). Do not silence that check.
+- Red energy follows the existing red texture and edge masks; charcoal faces never light up.
+- Pause, reduced motion and offscreen/background suspension stop the animation. Mobile caps the pixel ratio and lowers it if frames are slow.
+- The island has no character. A new mascot is planned; the menu footer still shows the earlier voxel explorer (`assets/explorer.png`).
+- Earlier voxel island (`js/island.js`, `js/explorer.js`, `assets/sculpture*.webp`, `assets/island.bin`, `tools/sculpture-vox.js`, `tools/build-sculpture.js`, `demo.html`) is no longer on the home page and is kept for reference.
 - Links to `games.html`, `studio.html` and `contact.html` are placeholders until those pages exist.
-- `demo.html` is a texture demo of the home page (switch between the live render, the old flat red and the pixel stone demo); it is not linked from the site.
-- The wordmark is an inline SVG (also `assets/wordmark.svg`), built from Inter Tight outlines by `tools/wordmark-glyphs.py` and `tools/wordmark-svg.py` (needs `pip install fonttools brotli`).
-- `js/island.js` draws the island live with WebGL from `assets/island.bin` (written by the build): breathing gate, sparks, a light pulse along the red edges, and blocks that burst when tapped.
