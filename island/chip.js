@@ -163,18 +163,31 @@ export function createChip(stoneMap) {
   tuft.add(tuftStone);
   body.add(tuft);
 
-  // Face: two big ivory pixel eyes with dark pupils and a highlight, a red blush, a small mouth for effort and surprise.
+  // Face: big ivory pixel eyes (open with pupil and shine, or a happy "^"), dark stone brows that tilt and lift on
+  // their own, a red blush and a pixel mouth with a few shapes.
   const front = MAIN[2] / 2 + .004;
   const eyes = [-1, 1].map(side => {
     const eye = new THREE.Group();
     eye.position.set(side * .1, MAIN_Y + .035, front);
+    const open = new THREE.Group();
     const white = flat(.092, .112, .01, IVORY);
     const pupil = flat(.06, .074, .01, INK);
     pupil.position.z = .004;
     const shine = flat(.018, .018, .01, IVORY);
     shine.position.z = .008;
-    eye.add(white, pupil, shine);
-    eye.userData = {pupil, shine};
+    open.add(white, pupil, shine);
+    const happy = new THREE.Group();          // a pixel caret: the eye squeezed shut with joy
+    for (const s of [-1, 1]) {
+      const stroke = flat(.058, .024, .01, IVORY);
+      stroke.position.set(s * .021, 0, 0);
+      stroke.rotation.z = -s * .6;
+      happy.add(stroke);
+    }
+    happy.position.y = -.004;
+    const brow = flat(.078, .02, .012, INK);
+    brow.userData.side = side;
+    eye.add(open, happy, brow);
+    eye.userData = {open, happy, pupil, shine, brow, side};
     body.add(eye);
     return eye;
   });
@@ -183,16 +196,42 @@ export function createChip(stoneMap) {
     blush.position.set(side * .16, MAIN_Y - .045, front);
     body.add(blush);
   }
-  const mouth = flat(.036, .026, .01, INK);
-  mouth.position.set(0, MAIN_Y - .06, front);
+  const mouth = new THREE.Group();
+  mouth.position.set(0, MAIN_Y - .07, front);
+  const shapes = {
+    small: [[0, 0, .03, .013]],
+    flat: [[0, 0, .056, .013]],
+    smile: [[0, 0, .034, .014], [-.024, .012, .014, .014], [.024, .012, .014, .014]],
+    o: [[0, 0, .032, .038]],
+    grin: [[0, 0, .066, .04], [0, -.012, .034, .014, BLUSH]]
+  };
+  const mouths = {};
+  for (const [name, blocks] of Object.entries(shapes)) {
+    const shape = new THREE.Group();
+    blocks.forEach(([x, y, w, h, color = INK], i) => {
+      const block = flat(w, h, .01, color);
+      block.position.set(x, y, i * .002);
+      shape.add(block);
+    });
+    mouth.add(shape);
+    mouths[name] = shape;
+  }
+  mouth.userData.shapes = mouths;
   body.add(mouth);
 
+  // Chunky arms ending in mitten hands with a thumb, so Chip can steady, grab and carry.
   const arms = [-1, 1].map((side, i) => {
     const pivot = new THREE.Group();
-    pivot.position.set(side * (MAIN[0] / 2 + .036), MAIN_Y + .06, 0);
-    const arm = stone(.062, .17, .07, {seed: 61 + i, chip: .01, materials});
-    arm.position.y = -.085;
-    pivot.add(arm);
+    pivot.position.set(side * (MAIN[0] / 2 + .046), MAIN_Y + .055, 0);
+    const upper = stone(.088, .12, .09, {seed: 61 + i, chip: .012, materials});
+    upper.position.y = -.06;
+    const hand = new THREE.Group();
+    hand.position.y = -.152;
+    const mitten = stone(.104, .082, .106, {seed: 71 + i, chip: .014, materials});
+    const thumb = stone(.036, .042, .042, {seed: 81 + i, chip: .006, materials});
+    thumb.position.set(-side * .05, .006, .03);
+    hand.add(mitten, thumb);
+    pivot.add(upper, hand);
     pivot.userData.side = side;
     body.add(pivot);
     return pivot;
@@ -222,25 +261,36 @@ export function createChip(stoneMap) {
 }
 
 // Pose parameters, all optional: squash (1 = rest, <1 squashed, >1 stretched), lift (height off the ground), lean
-// (forward, radians), arms (raise outward, radians), armsBack (swing back), legs (1 = straight, <1 tucked), look
-// ([x, y] pupil direction, -1..1), blink (0 open, 1 shut), mouth, tuft (extra tilt), ember, dust.
+// (forward, radians), tilt (head tilt, radians), arms (raise outward, radians; one number or [left, right]), armsBack
+// (swing back; number or pair), legs (1 = straight, <1 tucked), look ([x, y] pupils, -1..1), blink (0 open, 1 shut),
+// eyes ('open' or 'happy'), brows ({tilt: [l, r], raise: [l, r]}; tilt > 0 lifts the inner ends, worried; < 0 lowers
+// them, determined), mouth (false or 'small', 'flat', 'smile', 'o', 'grin'), tuft (extra tilt), ember, dust.
 export function poseChip(chip, pose = {}) {
-  const p = {squash: 1, lift: 0, lean: 0, arms: .12, armsBack: 0, legs: 1, look: [0, 0], blink: 0, mouth: false, tuft: 0, ember: false, dust: false, ...pose};
+  const p = {squash: 1, lift: 0, lean: 0, tilt: 0, arms: .12, armsBack: 0, legs: 1, look: [0, 0], blink: 0, eyes: 'open',
+    brows: {}, mouth: false, tuft: 0, ember: false, dust: false, ...pose};
+  const pair = v => Array.isArray(v) ? v : [v, v];
   const across = 1 / Math.sqrt(p.squash);
   chip.root.position.y = p.lift;
   chip.body.position.y = LEG_H * p.legs;
   chip.body.scale.set(across, p.squash, across);
-  chip.body.rotation.x = p.lean;
+  chip.body.rotation.set(p.lean, 0, p.tilt);
   for (const leg of chip.legs) { leg.position.y = LEG_H * p.legs; leg.scale.y = p.legs; }
-  for (const arm of chip.arms) { arm.rotation.z = arm.userData.side * p.arms; arm.rotation.x = p.armsBack; }
-  for (const eye of chip.eyes) {
-    eye.scale.y = Math.max(.12, 1 - p.blink);
-    const {pupil, shine} = eye.userData;
+  const arms = pair(p.arms), back = pair(p.armsBack);
+  chip.arms.forEach((arm, i) => { arm.rotation.z = arm.userData.side * arms[i]; arm.rotation.x = back[i]; });
+  const tilt = pair(p.brows.tilt ?? 0), raise = pair(p.brows.raise ?? 0);
+  chip.eyes.forEach((eye, i) => {
+    const {open, happy, pupil, shine, brow, side} = eye.userData;
+    const isHappy = p.eyes === 'happy';
+    open.visible = !isHappy;
+    happy.visible = isHappy;
+    open.scale.y = Math.max(.12, 1 - p.blink);
     pupil.position.x = p.look[0] * .012;
     pupil.position.y = p.look[1] * .014 - .004;
     shine.position.set(pupil.position.x - .015, pupil.position.y + .021, .008);
-  }
-  chip.mouth.visible = p.mouth;
+    brow.position.set(side * -.004, .078 + raise[i] - (isHappy ? .012 : p.blink * .03), .002);
+    brow.rotation.z = -side * tilt[i];
+  });
+  for (const [name, shape] of Object.entries(chip.mouth.userData.shapes)) shape.visible = p.mouth === name;
   chip.tuft.rotation.z = -.22 + p.tuft;
   chip.ember.visible = p.ember;
   chip.dust.visible = p.dust;
@@ -249,10 +299,21 @@ export function poseChip(chip, pose = {}) {
   chip.shadow.material.opacity = s;
 }
 
+// Body poses: each carries a face, so a pose reads as a moment, not just a shape.
 export const CHIP_POSES = {
-  idle: {look: [.35, .15]},
-  ready: {squash: .82, legs: .72, lean: .14, arms: .3, armsBack: .7, look: [0, -.45], blink: .2, tuft: .08},
-  hop: {squash: 1.12, lift: .34, legs: .62, arms: 2.25, look: [0, .8], mouth: true, tuft: -.35},
-  land: {squash: .76, legs: .82, arms: 1.25, blink: .55, mouth: true, tuft: .4, dust: true},
-  carry: {squash: .97, arms: 2.75, look: [0, .9], ember: true}
+  idle: {look: [.35, .15], tilt: .05, brows: {raise: [0, .016]}, mouth: 'small'},
+  ready: {squash: .82, legs: .72, lean: .16, arms: .35, armsBack: .75, look: [0, -.45], brows: {tilt: -.4, raise: -.008}, mouth: 'flat', tuft: .08},
+  hop: {squash: 1.14, lift: .34, legs: .6, lean: -.06, arms: .95, armsBack: .65, look: [0, .7], brows: {raise: .026}, mouth: 'grin', tuft: -.4},
+  land: {squash: .76, legs: .82, arms: 1.15, blink: .7, brows: {tilt: .35}, mouth: 'o', tuft: .42, dust: true},
+  carry: {squash: .97, tilt: -.05, arms: [3.72, .95], look: [-.5, .9], brows: {tilt: .3, raise: .01}, mouth: 'smile', ember: true}
+};
+
+// Face-only expressions, layered on the idle body.
+export const CHIP_FACES = {
+  curious: {look: [.7, .25], tilt: .1, brows: {raise: [0, .026]}, mouth: 'small'},
+  determined: {look: [0, -.2], brows: {tilt: -.5, raise: -.01}, mouth: 'flat'},
+  joy: {eyes: 'happy', brows: {raise: .024}, mouth: 'grin'},
+  oof: {blink: .72, brows: {tilt: .45}, mouth: 'o'},
+  proud: {eyes: 'happy', tilt: -.08, brows: {tilt: -.12, raise: .006}, mouth: 'smile'},
+  sleepy: {blink: .82, tilt: .12, brows: {raise: -.012}, mouth: 'small'}
 };

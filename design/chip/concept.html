@@ -12,7 +12,7 @@
 </style>
 </head>
 <body>
-<canvas id="sheet" width="1800" height="1640"></canvas>
+<canvas id="sheet" width="1800" height="1960"></canvas>
 <canvas id="gl"></canvas>
 <script type="module">
 // Concept sheet for Chip, rendered live with the island's own modules: turnaround, key poses, and Chip on the island
@@ -20,9 +20,9 @@
 import * as THREE from '../../island/assets/vendor/three.module.js';
 import {createWorld} from '../../island/world.js?v=embers-13';
 import {loadStoneTexture} from '../../island/stone.js?v=embers-13';
-import {createChip, poseChip, CHIP_POSES} from '../../island/chip.js';
+import {createChip, poseChip, CHIP_POSES, CHIP_FACES} from '../../island/chip.js';
 
-const W = 1800, H = 1640, M = 60;
+const W = 1800, H = 1960, M = 60;
 const COLORS = {bg: '#090A08', panel: '#0E0F0D', rule: 'rgba(244,240,230,.14)', ivory: '#F4F0E6', muted: 'rgba(244,240,230,.62)', red: '#E50D0A'};
 const DIR = new THREE.Vector3(14.2, 10.4, 19).normalize();   // the island camera's direction
 const FACING = Math.atan2(DIR.x, DIR.z);                      // Chip's rotation that faces the viewer
@@ -79,20 +79,27 @@ function panel(x, y, w, h, label, draw) { panels.push({x, y, w, h, label}); rend
 
 const chipTarget = SPOT.clone().add(new THREE.Vector3(0, .36, 0));
 const turnaround = [['Front', FACING], ['Three-quarter', FACING - Math.PI / 4], ['Side', FACING - Math.PI / 2], ['Back', FACING + Math.PI]];
-const rowTop = [250, 720, 1190];
+const rowTop = [250, 720, 1190, 1510];
 let x = M;
 for (const [label, angle] of turnaround) {
   panel(x, rowTop[0], 405, 400, label, aspect => { poseChip(chip, CHIP_POSES.idle); chip.group.rotation.y = angle; renderer.render(studio, camera(chipTarget, 1.02, aspect)); });
   x += 405 + 20;
 }
 x = M;
-const poses = [['Idle', 'idle', 'Looks around, breathes'], ['Ready', 'ready', 'Anticipation: squash, arms back'], ['Hop', 'hop', 'Stretch, tuft lags behind'], ['Land', 'land', 'Squash, dust, tuft overshoots'], ['Carry', 'carry', 'Balances the ember on its cap']];
+const poses = [['Idle', 'idle', 'Looks around, breathes'], ['Ready', 'ready', 'Anticipation: squash, arms back'], ['Hop', 'hop', 'Arms swept back, tuft lags behind'], ['Land', 'land', 'Squash, dust, tuft overshoots'], ['Carry', 'carry', 'One hand steadies the ember']];
 for (const [label, key, note] of poses) {
   panel(x, rowTop[1], 320, 400, label + '|' + note, aspect => { poseChip(chip, CHIP_POSES[key]); chip.group.rotation.y = FACING - .45; renderer.render(studio, camera(chipTarget.clone().add(new THREE.Vector3(0, key === 'hop' ? .12 : 0, 0)), 1.12, aspect)); });
   x += 320 + 20;
 }
-panel(M, rowTop[2], 830, 400, 'Top step|Carrying the ember down to the gate', aspect => renderer.render(island, camera(onTopStep.group.position.clone().add(new THREE.Vector3(.35, -.15, 0)), 2.6, aspect)));
-panel(M + 850, rowTop[2], 830, 400, 'At the gate|Glancing in; the gate light falls on its side', aspect => renderer.render(island, camera(atGate.group.position.clone().add(new THREE.Vector3(-.45, .55, -.2)), 2.2, aspect)));
+const faceTarget = SPOT.clone().add(new THREE.Vector3(0, .43, 0));
+const faces = [['Curious', 'curious'], ['Determined', 'determined'], ['Joy', 'joy'], ['Oof', 'oof'], ['Proud', 'proud'], ['Sleepy', 'sleepy']];
+x = M;
+for (const [label, key] of faces) {
+  panel(x, rowTop[2], 263, 260, label, aspect => { poseChip(chip, CHIP_FACES[key]); chip.group.rotation.y = FACING - .2; renderer.render(studio, camera(faceTarget, .74, aspect)); });
+  x += 263 + 20;
+}
+panel(M, rowTop[3], 830, 400, 'Top step|Carrying the ember down to the gate', aspect => renderer.render(island, camera(onTopStep.group.position.clone().add(new THREE.Vector3(.35, -.15, 0)), 2.6, aspect)));
+panel(M + 850, rowTop[3], 830, 400, 'At the gate|Glancing in; the gate light falls on its side', aspect => renderer.render(island, camera(atGate.group.position.clone().add(new THREE.Vector3(-.45, .55, -.2)), 2.2, aspect)));
 
 // Compose the sheet: the WebGL panels, then type.
 const sheet = document.querySelector('#sheet'), ctx = sheet.getContext('2d');
@@ -105,12 +112,12 @@ ctx.fillText('Chip', M - 4, 120);
 ctx.letterSpacing = '0px';
 ctx.font = '500 24px "Inter Tight"';
 ctx.fillStyle = COLORS.muted;
-ctx.fillText('The island keeper who lights the gate · concept v1', M, 165);
+ctx.fillText('The island keeper who lights the gate · concept v2', M, 165);
 ctx.textAlign = 'right';
 ctx.fillText('blitzedo', W - M, 120);
 ctx.textAlign = 'left';
 ctx.fillStyle = COLORS.red; ctx.fillRect(M, 190, 40, 3);
-const sections = [['Turnaround', rowTop[0]], ['Poses', rowTop[1]], ['On the island', rowTop[2]]];
+const sections = [['Turnaround', rowTop[0]], ['Poses', rowTop[1]], ['Expressions', rowTop[2]], ['On the island', rowTop[3]]];
 ctx.font = '700 22px "Inter Tight"';
 for (const [title, top] of sections) { ctx.fillStyle = COLORS.ivory; ctx.fillText(title, M, top - 16); }
 for (const p of panels) {
