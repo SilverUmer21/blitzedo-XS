@@ -38,7 +38,7 @@ try {
   // Start downloading the textures before building the island, so the two overlap instead of queueing.
   const textures = loadStoneTexture();
   const model = createWorld();scene.add(model.world);
-  let pixelRatio = Math.min(devicePixelRatio||1,compact.matches?1.5:2);
+  let pixelRatio = Math.min(devicePixelRatio||1,compact.matches?1.5:2), gridScale = 1;
   const pointer = new THREE.Vector2();
   let visible=true, paused=reducedMotion.matches, last=0, elapsed=0, previous=performance.now();
   // Chip (keeper.js) lights the fuse in the browser; until it arrives the fuse stays unlit, and if it cannot load the
@@ -49,7 +49,11 @@ try {
     if(failed)return;
     const {width,height}=container.getBoundingClientRect();
     if(!width||!height)return;
-    renderer.setPixelRatio(pixelRatio);renderer.setSize(width,height,false);
+    // Drawn on the loading artwork's own pixel grid (850 x 1008), so the browser scales both alike and nothing shifts at
+    // the hand-over; a slow device steps down from there (gridScale).
+    const poster=document.querySelector('.hero__sculpture');
+    if(poster?.naturalWidth){renderer.setPixelRatio(1);renderer.setSize(Math.round(poster.naturalWidth*gridScale),Math.round(poster.naturalHeight*gridScale),false);}
+    else{renderer.setPixelRatio(pixelRatio);renderer.setSize(width,height,false);}
     frameSculpture(camera,width/height);
     if(materialReady)renderer.render(scene,camera);
   }
@@ -68,12 +72,14 @@ try {
   canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();fallback();});
   resize();model.animate(0,!paused);updateMotion();
   let slowFrames=0,measured=0;
-  const SETTLE=1.8;
+  const HOLD=.5,SETTLE=3;               // seconds: the fade over the artwork (css), then the float's ease-in
+  let revealedAt=Infinity;
   function tick(now) {
     frame=requestAnimationFrame(tick);
     const delta=Math.min((now-previous)/1000,.1);previous=now;
     if(!materialReady||document.hidden||!visible)return;
-    if(!paused)elapsed+=delta;
+    // The island holds perfectly still while it fades in over the artwork, then the float eases in.
+    if(!paused&&now-revealedAt>HOLD*1000)elapsed+=delta;
     if(now-last < 16)return;
     last=now;
     if(paused && Math.abs(model.world.rotation.y)<.0001 && Math.abs(model.world.rotation.x)<.0001 && elapsed===0)return;
@@ -82,15 +88,15 @@ try {
     keeperClock=elapsed;
     model.animate(elapsed,!paused,fuse);
     // The float eases in from the loading artwork's exact pose rather than leaving it at full speed.
-    const settle=Math.min(1,elapsed/SETTLE),ease=settle*settle*(3-2*settle);
+    const settle=Math.min(1,elapsed/SETTLE),ease=settle*settle*settle*(settle*(settle*6-15)+10);
     model.world.position.multiplyScalar(ease);model.world.rotation.z*=ease;
-    model.world.rotation.y=THREE.MathUtils.lerp(model.world.rotation.y,paused?0:pointer.x*.10,.045);
-    model.world.rotation.x=THREE.MathUtils.lerp(model.world.rotation.x,paused?0:pointer.y*.035,.045);
+    model.world.rotation.y=THREE.MathUtils.lerp(model.world.rotation.y,paused?0:pointer.x*.10*ease,.045);
+    model.world.rotation.x=THREE.MathUtils.lerp(model.world.rotation.x,paused?0:pointer.y*.035*ease,.045);
     if(paused)elapsed=0;
     const start=performance.now();
     try {renderer.render(scene,camera);} catch {fallback();return;}
     // Frame speed is judged only once the island has settled and Chip has arrived, so start-up work never lowers the resolution.
-    if(!paused && elapsed>SETTLE+1.5 && keeperState!=='loading' && measured<90){measured++;if(performance.now()-start>24)slowFrames++;if(measured===90&&slowFrames>28){pixelRatio=Math.max(.85,pixelRatio*.7);resize();}}
+    if(!paused && elapsed>SETTLE+1.5 && keeperState!=='loading' && measured<90){measured++;if(performance.now()-start>24)slowFrames++;if(measured===90&&slowFrames>28){pixelRatio=Math.max(.85,pixelRatio*.7);gridScale*=.7;resize();}}
   }
   frame=requestAnimationFrame(tick);
   textures.then(stoneMap=>{
@@ -99,7 +105,7 @@ try {
       model.applyStoneTexture(stoneMap);
       materialReady=true;model.animate(0,!paused);
       renderer.render(scene,camera);
-      container.classList.add('is-3d-ready');if(errorNotice)errorNotice.hidden=true;updateMotion();
+      container.classList.add('is-3d-ready');revealedAt=performance.now();if(errorNotice)errorNotice.hidden=true;updateMotion();
       // ?tune opens the red tuning panel (development only).
       if(/[?&]tune\b/.test(globalThis.location?.search||''))import('./tuner.js').then(t=>t.mountTuner(model.world,()=>{if(materialReady)renderer.render(scene,camera);}));
       // Chip arrives once the float has settled and the page is idle, so the swap from the artwork stays smooth.

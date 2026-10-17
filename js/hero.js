@@ -1,6 +1,6 @@
 /*
  * The live island (island/scene.js, a Three.js scene of fractured stone). The finished artwork image stays on screen until
- * every material has rendered, then the canvas takes over in one step. This loader also catches the module failing to
+ * every material has rendered, then the canvas fades in over it. This loader also catches the module failing to
  * download or parse, not only errors inside the renderer, and shows Retry.
  */
 (function () {

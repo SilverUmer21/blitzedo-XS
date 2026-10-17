@@ -10,7 +10,7 @@
       "scenes/kit.js": "4804f0e5e6977b803c111198dae37177b90cd6dbde2bb4413e21b419ebb9fff0",
       "scenes/mailbox.js": "aa87a4506764af43617a1fba86d574db71b4a4ebc725472281084c22b33f2609",
       "scenes/shading.js": "64a3dffdb211e8b82d894d5158bfb7e2eac9e22490d8d12c9e282f3ad6b05932",
-      "scenes/stage.js": "c432397bff0e78b536ad1129723d2b4e91100a3d5e4aee298fdd381334e9882d"
+      "scenes/stage.js": "a759ed9daa278db4a80950816667f83bf5b72b98fc4796b4c4450efc5a299afa"
     },
     "pictures": {
       "mailbox-1520.webp": "8578e85f46c460b7b5c886db322e43935132b6d50025ecdb3a3c642ffc1ab63f",
@@ -27,7 +27,7 @@
       "island/stone.js": "9dc4546958e1c572a8a9243fb61c4a22a1f88d303d95961519cc0c7caabcc7b6",
       "scenes/kit.js": "4804f0e5e6977b803c111198dae37177b90cd6dbde2bb4413e21b419ebb9fff0",
       "scenes/shading.js": "64a3dffdb211e8b82d894d5158bfb7e2eac9e22490d8d12c9e282f3ad6b05932",
-      "scenes/stage.js": "c432397bff0e78b536ad1129723d2b4e91100a3d5e4aee298fdd381334e9882d",
+      "scenes/stage.js": "a759ed9daa278db4a80950816667f83bf5b72b98fc4796b4c4450efc5a299afa",
       "scenes/workshop.js": "6e7af5ed10b12e1f724b281bac857dc3c5d94233fce4722db250734b101ce269"
     },
     "pictures": {

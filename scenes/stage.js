@@ -67,14 +67,14 @@ export function runStage({container, canvas, scene: built, onFrame}) {
     const dt = Math.min((now - previous) / 1000, .1);
     previous = now;
     if (document.hidden || !visible) return;
-    if (!paused) elapsed += dt;
+    if (!paused && now - started > 500) elapsed += dt;       // still while it fades in over its picture (css), then moving
     built.animate?.(elapsed, !paused, dt);
     onFrame?.(elapsed, !paused, dt);
     // the float eases in from the loading picture's pose instead of leaving it at full speed
-    const settle = Math.min(1, elapsed / 1.8), ease = settle * settle * (3 - 2 * settle);
+    const settle = Math.min(1, elapsed / 3), ease = settle * settle * settle * (settle * (settle * 6 - 15) + 10);
     root.position.y = paused ? 0 : Math.sin(elapsed * Math.PI * 2 / 6.6) * .05 * ease;
-    root.rotation.y = THREE.MathUtils.lerp(root.rotation.y, paused ? 0 : pointer.x * .08, .045);
-    root.rotation.x = THREE.MathUtils.lerp(root.rotation.x, paused ? 0 : pointer.y * .03, .045);
+    root.rotation.y = THREE.MathUtils.lerp(root.rotation.y, paused ? 0 : pointer.x * .08 * ease, .045);
+    root.rotation.x = THREE.MathUtils.lerp(root.rotation.x, paused ? 0 : pointer.y * .03 * ease, .045);
     const t0 = performance.now();
     render();
     if (!paused && measured < 90) {
@@ -87,6 +87,7 @@ export function runStage({container, canvas, scene: built, onFrame}) {
   built.animate?.(0, !paused, 0);
   resize();
   container.classList.add('is-3d-ready');
+  const started = performance.now();
   raf = requestAnimationFrame(tick);
   return {renderer, scene, camera, root, render, stop: () => cancelAnimationFrame(raf)};
 }
