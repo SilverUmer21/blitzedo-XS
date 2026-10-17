@@ -18,7 +18,7 @@ image.save(poster, 'WEBP', lossless=True, quality=100, method=6)
 
 sha = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
 inputs = {f'island/{name}': sha(root / 'island' / name) for name in ['world.js', 'stone.js', 'reference-shading.js', 'composition.js', 'fuse.js']}
-inputs.update({f'island/assets/pixel-{kind}-v9.png': sha(assets / f'pixel-{kind}-v9.png') for kind in ['stone', 'red', 'edge']})
+inputs.update({f'island/assets/pixel-{kind}-v9.webp': sha(assets / f'pixel-{kind}-v9.webp') for kind in ['stone', 'red', 'edge']})
 manifest = {
     'renderer': 'Browser WebGL via tools/poster/capture.html (live island modules, 2x render, premultiplied Lanczos downsample)',
     'artworkSha256': sha(poster),

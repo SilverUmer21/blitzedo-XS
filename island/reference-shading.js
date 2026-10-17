@@ -147,14 +147,15 @@ export function prepareReferenceFaces(mesh){
   const geometry=source.index?source.toNonIndexed():source;
   const {position,normal}=geometry.attributes;
   const centers=new Float32Array(position.count*3),normals=new Float32Array(position.count*3);
+  // Per face: the centre and the normalised summed normal, with plain numbers (the same operations as Vector3's add,
+  // multiplyScalar(1/3) and normalize, without allocating three vectors per face).
+  const P=position.array,N=normal.array,third=1/3;
   for(let i=0;i<position.count;i+=3){
-    const center=new THREE.Vector3(),n=new THREE.Vector3();
-    for(let j=0;j<3;j++){
-      center.add(new THREE.Vector3().fromBufferAttribute(position,i+j));
-      n.add(new THREE.Vector3().fromBufferAttribute(normal,i+j));
-    }
-    center.multiplyScalar(1/3);n.normalize();
-    for(let j=0;j<3;j++){center.toArray(centers,(i+j)*3);n.toArray(normals,(i+j)*3);}
+    const o=i*3;
+    const cx=(0+P[o]+P[o+3]+P[o+6])*third,cy=(0+P[o+1]+P[o+4]+P[o+7])*third,cz=(0+P[o+2]+P[o+5]+P[o+8])*third;   // from 0, as Vector3: -0 becomes +0
+    let nx=0+N[o]+N[o+3]+N[o+6],ny=0+N[o+1]+N[o+4]+N[o+7],nz=0+N[o+2]+N[o+5]+N[o+8];
+    const inv=1/(Math.sqrt(nx*nx+ny*ny+nz*nz)||1);nx*=inv;ny*=inv;nz*=inv;
+    for(let j=0;j<9;j+=3){centers[o+j]=cx;centers[o+j+1]=cy;centers[o+j+2]=cz;normals[o+j]=nx;normals[o+j+1]=ny;normals[o+j+2]=nz;}
   }
   geometry.setAttribute('faceCenter',new THREE.BufferAttribute(centers,3));
   geometry.setAttribute('faceNormal',new THREE.BufferAttribute(normals,3));

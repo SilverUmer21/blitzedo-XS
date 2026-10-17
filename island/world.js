@@ -1,6 +1,7 @@
 import * as THREE from './assets/vendor/three.module.js';
 import { fuseRoute, floatingPose, fusePhase } from './fuse.js?v=embers-13';
 import { stoneResources, fractureGeometry } from './stone.js?v=embers-13';
+import { VIEW_DIRECTION } from './composition.js?v=embers-13';
 import { referenceMaterial, prepareReferenceFaces, portalVertex, portalFragment } from './reference-shading.js?v=embers-13';
 
 // Stone is laid in varying courses, with a carved outline rather than a voxel mask.
@@ -8,6 +9,10 @@ export function createWorld({shadows = true, stoneMap = null} = {}) {
   let seed=82719;
   const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
   const world=new THREE.Group(), batches=new Map(), debris=[];
+  // The island is stretched by this scale (set on the world at the end), so the camera's direction is taken into its space
+  // to tell which faces are turned away from it.
+  const scale=[1.3,.94,1.35];
+  const view=new THREE.Vector3(VIEW_DIRECTION.x/scale[0],VIEW_DIRECTION.y/scale[1],VIEW_DIRECTION.z/scale[2]).normalize();
   const {materials}=stoneResources({albedo:stoneMap});
   const dark=materials.stone, red=materials.red;
   dark.userData.kind='stone';red.userData.kind='red';materials.edge.userData.kind='edge';
@@ -38,27 +43,57 @@ export function createWorld({shadows = true, stoneMap = null} = {}) {
     if(g!==geometry)g.dispose();
   }
   const swatches=Array.from({length:7},(_,i)=>new THREE.Color(0x82817d).multiplyScalar(.85+i*.035));
+  // Faces are written straight into typed buffers per material (no per-face objects or arrays): the same bytes, built
+  // several times faster, which is most of the island's start-up time. Buffers are filled in chunks and joined once.
+  function batchFor(material,faces){
+    let chunks=batches.get(material);
+    if(!chunks){chunks=[];batches.set(material,chunks);}
+    let b=chunks[chunks.length-1];
+    if(!b||(b.faces+faces)*9>b.position.length){
+      const size=Math.max(16384,faces);
+      b={position:new Float32Array(9*size),normal:new Float32Array(9*size),color:new Float32Array(9*size),uv:new Float32Array(6*size),pulseRoute:new Float32Array(6*size),faces:0};
+      chunks.push(b);
+    }
+    return b;
+  }
+  // Whether a triangle, by its winding (what the GPU culls by; some stored normals predate later vertex edits), is turned
+  // well away from the camera. Slivers are always kept: their winding is too fine to call the same way the GPU does.
+  const SLIVER=1e-4;
+  const turnedAway=(P,o)=>{
+    const ux=P[o+3]-P[o],uy=P[o+4]-P[o+1],uz=P[o+5]-P[o+2],vx=P[o+6]-P[o],vy=P[o+7]-P[o+1],vz=P[o+8]-P[o+2];
+    const cx=uy*vz-uz*vy,cy=uz*vx-ux*vz,cz=ux*vy-uy*vx;
+    const length=Math.sqrt(cx*cx+cy*cy+cz*cz);
+    return length>SLIVER&&cx*view.x+cy*view.y+cz*view.z< -.2*length;
+  };
   function add(geometry,material=dark,shade=null,tint=1) {
     if(geometry.index){const source=geometry;geometry=source.toNonIndexed();source.dispose();}
     const shadeColor=shade||swatches[Math.floor(rand()*swatches.length)];
     const tile=Math.floor(rand()*16),redTile=Math.floor(rand()*8);
+    // Fractured stone brings the bounds of all its faces, including the ones left out as never visible.
+    const bounds=geometry.userData.bounds;
     geometry.userData={tile};
     const attrs=geometry.attributes;
-    geometry.computeBoundingBox();
-    const center=geometry.boundingBox.getCenter(new THREE.Vector3());
+    if(!bounds)geometry.computeBoundingBox();
+    const center=(bounds||geometry.boundingBox).getCenter(new THREE.Vector3());
     const route=fuseRoute(center,'red');
+    const redColor=new THREE.Color(0xffffff).multiplyScalar(.94*tint);
+    const P=attrs.position.array,N=attrs.normal.array,U=attrs.uv.array,faces=attrs.position.count/3;
+    const darkBatch=batchFor(dark,faces),redBatch=material===red?batchFor(red,faces):null;
     // Red stone marks the exposed tread/crown. Its vertical face stays charcoal.
     for(let i=0;i<attrs.position.count;i+=3){
-      const top=(attrs.normal.getY(i)+attrs.normal.getY(i+1)+attrs.normal.getY(i+2))/3>.58;
+      // Faces turned away from the camera are never drawn (single-sided stone, fixed view): leave them out.
+      if(turnedAway(P,i*3))continue;
+      const top=(N[i*3+1]+N[i*3+4]+N[i*3+7])/3>.58;
       const faceMaterial=material===red&&top?red:dark;
-      const color=faceMaterial===red?new THREE.Color(0xffffff).multiplyScalar(.94*tint):shadeColor;
-      if(!batches.has(faceMaterial))batches.set(faceMaterial,[]);
-      const list=batches.get(faceMaterial);
-      // Store compact arrays; static faces are merged into two draw calls below.
+      const color=faceMaterial===red?redColor:shadeColor;
+      // Static faces are merged into two draw calls below.
+      const b=faceMaterial===red?redBatch:darkBatch,f9=b.faces*9,f6=b.faces*6;
       const faceTile=faceMaterial===red?redTile:tile;
       const col=faceTile%4,row=Math.floor(faceTile/4),span=faceMaterial === red ? .9375 : .62;
-      const uv=Array.from(attrs.uv.array.slice(i*2,i*2+6)).map((v,j)=>(j%2===0?(col+(v-Math.floor(v))*span+.03125)/4:1-(row+(v-Math.floor(v))*span+.03125)/4));
-      list.push({position:Array.from(attrs.position.array.slice(i*3,i*3+9)),normal:Array.from(attrs.normal.array.slice(i*3,i*3+9)),uv,pulseRoute:[...route,...route,...route],color:[color.r,color.g,color.b,color.r,color.g,color.b,color.r,color.g,color.b]});
+      for(let j=0;j<9;j++){b.position[f9+j]=P[i*3+j];b.normal[f9+j]=N[i*3+j];}
+      for(let j=0;j<3;j++){b.color[f9+j*3]=color.r;b.color[f9+j*3+1]=color.g;b.color[f9+j*3+2]=color.b;b.pulseRoute[f6+j*2]=route[0];b.pulseRoute[f6+j*2+1]=route[1];}
+      for(let j=0;j<6;j++){const v=U[i*2+j];b.uv[f6+j]=j%2===0?(col+(v-Math.floor(v))*span+.03125)/4:1-(row+(v-Math.floor(v))*span+.03125)/4;}
+      b.faces++;
     }
     geometry.dispose();stoneCount++;
   }
@@ -86,7 +121,7 @@ export function createWorld({shadows = true, stoneMap = null} = {}) {
       uv.setXY(i,(nx>.7?zz:x)*.999,(ny>.7?zz:y)*.999);
     }
     // Only primary exposed masonry receives dense relief; island fragments retain crisp cuts.
-    if(depth>.7&&size.y>.40)g=fractureGeometry(g,chipped,Math.floor(rand()*10000));
+    if(depth>.7&&size.y>.40)g=fractureGeometry(g,chipped,Math.floor(rand()*10000),view);
     add(g,material,null,tint);return g;
   }
   function slab(x,y,z,w,h,d,material=dark,chip=.023,tint=1){
@@ -249,13 +284,12 @@ export function createWorld({shadows = true, stoneMap = null} = {}) {
   }
 
   // Two merged masonry meshes plus the grouped edge surfaces.
-  for(const [material,faces]of batches){
-    const merged=new THREE.BufferGeometry();
+  for(const [material,chunks]of batches){
+    const merged=new THREE.BufferGeometry(),faces=chunks.reduce((n,b)=>n+b.faces,0);
     for(const name of ['position','normal','uv','color','pulseRoute']){
-      const itemSize=['uv','pulseRoute'].includes(name)?2:3;
-      const data=new Float32Array(faces.length*3*itemSize);let offset=0;
-      for(const face of faces){data.set(face[name],offset);offset+=face[name].length;}
-      merged.setAttribute(name,new THREE.BufferAttribute(data,itemSize));
+      const itemSize=['uv','pulseRoute'].includes(name)?2:3,array=new Float32Array(faces*3*itemSize);let offset=0;
+      for(const b of chunks){array.set(b[name].subarray(0,b.faces*3*itemSize),offset);offset+=b.faces*3*itemSize;}
+      merged.setAttribute(name,new THREE.BufferAttribute(array,itemSize));
     }
     const mesh=new THREE.Mesh(merged,material);mesh.castShadow=shadows;mesh.receiveShadow=shadows;world.add(mesh);
   }
@@ -292,7 +326,7 @@ export function createWorld({shadows = true, stoneMap = null} = {}) {
   const niche=new THREE.Mesh(new THREE.ShapeGeometry(nicheShape,12),new THREE.MeshBasicMaterial({color:0x020202}));niche.position.set(left+.43,4.15,back+.02);world.add(niche);
   world.traverse(o=>{if(o.isMesh&&o.material.userData.referenceShading)prepareReferenceFaces(o);});
   const animatedMaterials=new Set();world.traverse(o=>{if(o.isMesh&&o.material.uniforms?.motionTime)animatedMaterials.add(o.material);});
-  world.scale.set(1.3,.94,1.35);
+  world.scale.set(...scale);
   world.userData={stoneCount,door,construction:'reference atlases with pixel wear and an extended stone rim',staircase:'L-shaped',character:false};
   return {world,applyStoneTexture(map){
     const old=new Set(),updated=new Set();

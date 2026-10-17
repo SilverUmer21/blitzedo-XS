@@ -1,14 +1,14 @@
 {
   "renderer": "Browser WebGL via tools/poster/capture.html (live island modules, 2x render, premultiplied Lanczos downsample)",
-  "artworkSha256": "aafa63f3a213fe8dd9ca85171d3e5cb1b2634dcd8759f57954a45a05fab8f217",
+  "artworkSha256": "59520a34c1d598cf3711a349601197bdbadc3c8bb6b2030eda2ac6a41034d552",
   "inputs": {
-    "island/world.js": "1dd3c7e861ac513f21ac434e66e9e789c58f30778b19dce18e14e7ecbd9a9dd8",
-    "island/stone.js": "73f0e91bdb3fbb4d341924ee4b16d9ca8294545d3a130803e4831832082b388b",
-    "island/reference-shading.js": "a30e770952f844da994b7597e9e64b940f796618eb069a19a5e07aebb5950a47",
-    "island/composition.js": "5907dd0615c0404ee4d3778489799df05ad34615490dcfef61e1e58cf07d911f",
+    "island/world.js": "6d0ef6123eca9b3deab6798562c11a3bfe164251c462a039eccca0f4c0844562",
+    "island/stone.js": "9dc4546958e1c572a8a9243fb61c4a22a1f88d303d95961519cc0c7caabcc7b6",
+    "island/reference-shading.js": "f4c7f6fcf76a3e7bd40a7218e87a9db14dea87bde306f0c187760eb0fb001a75",
+    "island/composition.js": "f35b920c1dc39f5096ca1ad48e11789b080b7c371df3af048d527b8b536c5e01",
     "island/fuse.js": "f7586c76bea1ec17f0966d6c492354141480a27b42d6bf448a3a3813d30ce465",
-    "island/assets/pixel-stone-v9.png": "95100fbfa69d8487878dc55e346ea9a0ae7eeb6c02ad36423ef8be4a50b15c53",
-    "island/assets/pixel-red-v9.png": "d1bb57a72de556892b01e0c159eeb0e2a86061c095170d64feae12e97eabe3d3",
-    "island/assets/pixel-edge-v9.png": "268adb4d7001eb5a7152a9875bec5713a6ed5bc1786b30bd0d8525acf3db00d9"
+    "island/assets/pixel-stone-v9.webp": "2be0fa4f81826a8b3fc0af1482428e4affd958b5f82b5464ebe70b0925634c40",
+    "island/assets/pixel-red-v9.webp": "767b63174bc39432e3987fa0c6d326dee1a14b003f318ff7657143fdc4082002",
+    "island/assets/pixel-edge-v9.webp": "46ae2ffd0d8f74b5bc8a3e1723ff80e2de14bd8f51d31704b1ec6441887d61a1"
   }
 }

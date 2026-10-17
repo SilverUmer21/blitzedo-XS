@@ -35,6 +35,8 @@ try {
   const camera = sculptureCamera(1);
   // Reference materials own the same fixed lighting and color transform as the poster.
   // Keep the matching finished artwork visible until all model materials are ready.
+  // Start downloading the textures before building the island, so the two overlap instead of queueing.
+  const textures = loadStoneTexture();
   const model = createWorld();scene.add(model.world);
   let pixelRatio = Math.min(devicePixelRatio||1,compact.matches?1.5:2);
   const pointer = new THREE.Vector2();
@@ -86,7 +88,7 @@ try {
     if(!paused && measured<90){measured++;if(performance.now()-start>24)slowFrames++;if(measured===90&&slowFrames>28){pixelRatio=Math.max(.85,pixelRatio*.7);resize();}}
   }
   frame=requestAnimationFrame(tick);
-  loadStoneTexture().then(stoneMap=>{
+  textures.then(stoneMap=>{
     if(failed){stoneMap.dispose();return;}
     try {
       model.applyStoneTexture(stoneMap);
