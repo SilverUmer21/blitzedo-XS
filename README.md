@@ -48,4 +48,25 @@ The hero is a live Three.js scene of fractured stone: a tall b stem, a curved bo
 - Chip's design: `design/chip/concept.html` renders the concept sheet (turnaround, poses, expressions, Chip on the island) with the live modules; `design/concepts/chip-concept-v3.png` is the approved render. The menu footer still shows the earlier voxel explorer (`assets/explorer.png`).
 - The 33 "already non-indexed" console warnings come from the island's original geometry code; they are harmless.
 - Earlier voxel island (`js/island.js`, `js/explorer.js`, `assets/sculpture*.webp`, `assets/island.bin`, `tools/sculpture-vox.js`, `tools/build-sculpture.js`, `demo.html`) is no longer on the home page and is kept for reference.
-- Links to `games.html`, `studio.html` and `contact.html` are placeholders until those pages exist.
+- The `games.html` link is a placeholder until that page exists.
+
+## Studio and Contact (`studio.html`, `contact.html`, `scenes/`)
+
+Both pages carry a live diorama built from the island's own pieces, so every scene on the site shares one look: the photographed
+stone atlases, chipped and bevelled blocks with relief (`fractureGeometry`), the same art lighting and the island's camera
+angle. `island/` is not modified (its files are locked to the loading artwork by the tests).
+
+| File | Responsibility |
+| --- | --- |
+| `scenes/shading.js` | The island's lighting shader with per-scene red point lights and a key-light level. |
+| `scenes/kit.js` | Block builder: chipped polygons, atlas tiles at a constant pixel density, crimson cubes, pixel wood, paint. |
+| `scenes/stage.js` | The island camera, a slow float, a lean toward the pointer, pauses off screen and with reduced motion. |
+| `scenes/mailbox.js` | Contact: a crimson mailbox of ~400 small cubes on a stone post, envelope, broken columns, rubble, Chip. |
+| `scenes/workshop.js` | Studio: pixel-wood bench, an unfinished stone b, a red drawing of the b, tools, loose cubes, Chip. |
+| `scenes/preview.html` | Dev preview: `?scene=mailbox|workshop&w=&h=&zoom=&at=x,y,z`. |
+| `js/contact-form.js` | Labelled form with validation. It posts JSON to the form's `data-endpoint`; with none set it says plainly that nothing was sent. |
+
+- The envelope settles into the mailbox (and Chip hops) only after the server confirms a send, never on submit alone.
+  `contact.html?deliver` plays it once for review.
+- The contact topics (Our games, Working together, Press, Something else) are placeholders until the real ones are chosen.
+- The Studio process copy is generic; real examples from the studio's work can replace it later.

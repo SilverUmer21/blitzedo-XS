@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scene preview</title>
+<style>html, body { margin: 0; background: #090A08; } canvas { display: block; width: 100vw; height: 100vh; }</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script type="module">
+// Development preview of a scene at a fixed size: ?scene=mailbox|workshop&w=1400&h=1400&zoom=1&at=x,y,z
+// Sets window.__ready once the first frame with textures has rendered (used by the screenshot scripts).
+import * as THREE from '../island/assets/vendor/three.module.js';
+import { loadStoneTexture } from '../island/stone.js?v=embers-13';
+import { woodAtlas } from './kit.js';
+import { sceneCamera } from './stage.js';
+const q = new URLSearchParams(location.search);
+const name = q.get('scene') || 'mailbox';
+const W = +q.get('w') || 1400, H = +q.get('h') || 1400;
+const stoneMap = await loadStoneTexture();
+const maps = {stone: stoneMap, red: stoneMap.userData.red, edge: stoneMap.userData.edge, wood: woodAtlas()};
+const mod = await import(`./${name}.js`);
+const build = mod[{mailbox: 'buildMailbox', workshop: 'buildWorkshop'}[name]];
+const s = build({maps, stoneMap});
+const scene = new THREE.Scene();
+scene.add(s.group);
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas, antialias: true, preserveDrawingBuffer: true});
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.setPixelRatio(1);
+renderer.setSize(W, H, false);
+renderer.setClearColor(0x090A08, 1);
+const target = q.get('at') ? new THREE.Vector3(...q.get('at').split(',').map(Number)) : s.target;
+const camera = sceneCamera(target, s.viewHeight / (+q.get('zoom') || 1), W / H);
+s.animate?.(+q.get('t') || 0, false);
+renderer.render(scene, camera);
+window.__ready = true;
+</script>
+</body>
+</html>
