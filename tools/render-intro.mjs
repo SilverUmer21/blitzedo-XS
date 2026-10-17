@@ -22,7 +22,11 @@ const web=process.argv.includes('--web'),stills=process.argv.includes('--stills'
 await mkdir(output,{recursive:true});
 const canvas=createCanvas(1920,1080),ctx=canvas.getContext('2d');
 const film=await createFilm(canvas,{loadImage:src=>loadImage(join(root,src)),createCanvas});
-if(stills){for(const t of [.35,2.1,3.7,5.75,6.85,8.2,8.65,10.8]){film.draw(t);await writeFile(join(output,'frame-'+t+'.png'),canvas.toBuffer('image/png'));}console.log('Rendered 8 review frames.');process.exit(0);}
+if(stills){
+  const shots=[.35,.95,1.5,1.8,2.1,2.65,3.2,3.7,5.75,6.85,8.2,8.65,10.8];
+  for(const t of shots){film.draw(t);await writeFile(join(output,'frame-'+t+'.png'),canvas.toBuffer('image/png'));}
+  console.log('Rendered '+shots.length+' review frames.');process.exit(0);
+}
 const rate=48000,data=[];
 createScore({sampleRate:rate,createBuffer:(channels,n)=>({duration:n/rate,getChannelData:i=>(data[i]??=new Float32Array(n))})},duration);
 const wav=Buffer.alloc(44+data[0].length*4);wav.write('RIFF');wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(2,22);wav.writeUInt32LE(rate,24);wav.writeUInt32LE(rate*4,28);wav.writeUInt16LE(4,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(wav.length-44,40);

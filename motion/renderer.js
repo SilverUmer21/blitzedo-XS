@@ -13,7 +13,7 @@ const surface=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.heigh
 export async function createFilm(canvas,options={}){
   const loadAsset=options.loadImage||load,makeSurface=options.createCanvas||surface;
   const ctx=canvas.getContext('2d',{alpha:false});
-  const [stone,wordmark]=await Promise.all([loadAsset('island/assets/sculpture-fallback-v13.webp'),loadAsset('assets/wordmark.svg')]);
+  const [stone,wordmark,stoneAtlas]=await Promise.all([loadAsset('island/assets/sculpture-fallback-v13.webp'),loadAsset('assets/wordmark.svg'),loadAsset('island/assets/pixel-stone-v9.webp')]);
   const logo=makeSurface(1360,288),lc=logo.getContext('2d',{willReadFrequently:true});
   lc.drawImage(wordmark,0,0,1360,288);
   const redLogo=makeSurface(1360,288),rl=redLogo.getContext('2d');rl.drawImage(logo,0,0);rl.globalCompositeOperation='source-in';rl.fillStyle='#ff3825';rl.fillRect(0,0,1360,288);
@@ -26,13 +26,90 @@ export async function createFilm(canvas,options={}){
   const glow=makeSurface(290,342),gc=glow.getContext('2d');gc.filter='blur(9px)';gc.drawImage(redMask,12,12,266,318);
   const shadow=makeSurface(850,1008),sc=shadow.getContext('2d');sc.drawImage(stone,0,0);sc.globalCompositeOperation='source-in';sc.fillStyle='#000';sc.fillRect(0,0,850,1008);
   const shards=Array.from({length:80},(_,i)=>({col:i%8,row:Math.floor(i/8),r:hash(i+1),s:hash(i+100)}));
+  // The opening is one unworked piece of the same stone as the studio island.
+  // Its red seam fractures around a living pixel; the released fragments become the world.
+  const block=makeSurface(720,720),bc=block.getContext('2d');
+  const polygon=(c,points)=>{c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();};
+  const front=[[-210,-150],[140,-150],[140,210],[-210,210]],right=[[140,-150],[230,-230],[230,130],[140,210]],top=[[-210,-150],[-120,-230],[230,-230],[140,-150]];
+  bc.translate(360,360);
+  function face(points,tile,shade,origin,u,v){
+    bc.save();polygon(bc,points);bc.clip();bc.save();
+    bc.transform(u[0]/256,u[1]/256,v[0]/256,v[1]/256,origin[0],origin[1]);
+    bc.drawImage(stoneAtlas,(tile%4)*256,Math.floor(tile/4)*256,256,256,0,0,256,256);bc.restore();
+    bc.fillStyle=`rgba(0,0,0,${shade})`;bc.fillRect(-250,-260,510,510);bc.restore();
+    polygon(bc,points);bc.strokeStyle='#a29e8b38';bc.lineWidth=1.3;bc.stroke();
+  }
+  face(front,0,.68,[-210,-150],[350,0],[0,360]);
+  face(right,5,.82,[140,-150],[90,-80],[0,360]);
+  face(top,8,.53,[-210,-150],[350,0],[90,-80]);
+  const crackRoutes=[
+    [[0,16],[-65,16],[-65,48],[-140,48],[-140,68],[-210,68]],
+    [[0,16],[0,-54],[-20,-54],[-20,-150],[-3,-165],[21,-165],[55,-199],[91,-199],[125,-230]],
+    [[0,16],[78,16],[78,-16],[140,-16],[168,-41],[168,-9],[203,-40],[230,-64]],
+    [[0,16],[0,78],[35,78],[35,135],[70,135],[70,210]]
+  ];
+  function crackLines(c,progress,strength){
+    for(let n=0;n<crackRoutes.length;n++){
+      const points=crackRoutes[n],lengths=points.slice(1).map((p,i)=>Math.hypot(p[0]-points[i][0],p[1]-points[i][1]));
+      let left=lengths.reduce((a,b)=>a+b,0)*clamp(progress*(1-n*.025));
+      c.beginPath();c.moveTo(...points[0]);
+      for(let i=0;i<lengths.length&&left>0;i++){const q=Math.min(1,left/lengths[i]);c.lineTo(mix(points[i][0],points[i+1][0],q),mix(points[i][1],points[i+1][1],q));left-=lengths[i];}
+      c.lineJoin='miter';c.globalAlpha=strength*.12;c.strokeStyle='#ff2a0a';c.lineWidth=19;c.stroke();
+      c.globalAlpha=strength*.35;c.lineWidth=6;c.stroke();
+      c.globalAlpha=strength;c.strokeStyle='#ff4524';c.lineWidth=2.4;c.stroke();
+      c.globalAlpha=strength*.85;c.strokeStyle='#ffe2af';c.lineWidth=.65;c.stroke();
+    }c.globalAlpha=1;
+  }
+  const cracked=makeSurface(720,720),cc=cracked.getContext('2d');cc.drawImage(block,0,0);cc.translate(360,360);crackLines(cc,1,.84);
+  const pieces=[
+    [[-210,-150],[-20,-150],[-20,-54],[0,-54],[0,16],[-65,16],[-65,48],[-140,48],[-140,68],[-210,68]],
+    [[-20,-150],[140,-150],[140,-16],[78,-16],[78,16],[0,16],[0,-54],[-20,-54]],
+    [[0,16],[78,16],[78,-16],[140,-16],[140,210],[70,210],[70,135],[35,135],[35,78],[0,78]],
+    [[0,16],[0,78],[35,78],[35,135],[70,135],[70,210],[-210,210],[-210,68],[-140,68],[-140,48],[-65,48],[-65,16]],
+    [[-210,-150],[-120,-230],[125,-230],[91,-199],[55,-199],[21,-165],[-3,-165],[-20,-150]],
+    [[-20,-150],[-3,-165],[21,-165],[55,-199],[91,-199],[125,-230],[230,-230],[140,-150]],
+    [[140,-150],[230,-230],[230,-64],[203,-40],[168,-9],[168,-41],[140,-16]],
+    [[140,-16],[168,-41],[168,-9],[203,-40],[230,-64],[230,130],[140,210]]
+  ].map((points,i)=>{
+    const fragment=makeSurface(720,720),fc=fragment.getContext('2d');fc.translate(360,360);polygon(fc,points);fc.clip();fc.drawImage(cracked,-360,-360);
+    const x=points.reduce((a,p)=>a+p[0],0)/points.length,y=points.reduce((a,p)=>a+p[1],0)/points.length;
+    return {image:fragment,x,y,n:i};
+  });
   let lastChapter='';
   function rect(x,y,w,h,color,alpha=1){ctx.globalAlpha=alpha;ctx.fillStyle=color;ctx.fillRect(x,y,w,h);ctx.globalAlpha=1;}
   function aura(x,y,r,color,alpha=1){ctx.globalAlpha=alpha;const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color);g.addColorStop(1,'rgba(235,20,6,0)');ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2);ctx.globalAlpha=1;}
   function cube(x,y,s,a=1,hot=false,angle=0){ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.globalAlpha=a;ctx.fillStyle=hot?'#fff1d3':'#ee2518';ctx.fillRect(-s/2,-s/2,s,s);ctx.fillStyle=hot?'#ff5c2a':'#7b100b';ctx.beginPath();ctx.moveTo(s/2,-s/2);ctx.lineTo(s*.85,-s*.83);ctx.lineTo(s*.85,s*.15);ctx.lineTo(s/2,s/2);ctx.fill();ctx.fillStyle=hot?'#fff9eb':'#ff5234';ctx.beginPath();ctx.moveTo(-s/2,-s/2);ctx.lineTo(-s*.15,-s*.83);ctx.lineTo(s*.85,-s*.83);ctx.lineTo(s/2,-s/2);ctx.fill();ctx.restore();}
   function emberField(t,strength=1){for(let i=0;i<45;i++){const n=hash(i+130),life=(t*.17+n)%1,x=960+(hash(i+80)-.5)*850+(life-.5)*110,y=880-life*820;cube(x,y,1.8+hash(i)*3,Math.sin(life*Math.PI)*.45*strength,i%13===0);}}
+  function firstPixel(t){
+    const pulse=at=>t<at?0:Math.exp(-(t-at)*15)*Math.sin(clamp((t-at)/.09)*Math.PI/2);
+    const beat=pulse(.48)*.55+pulse(.91)*.8+pulse(1.34);
+    const crack=.12*phase(t,.34,.57)+.26*phase(t,.87,1.03)+.62*phase(t,1.25,1.56);
+    const release=out(phase(t,1.58,2.46)),fade=1-smooth(phase(t,2.12,2.70));
+    const zoom=mix(1.38,1.06,smooth(phase(t,0,1.58))),shake=beat*3.2;
+    ctx.save();ctx.translate(960+Math.sin(t*83)*shake,515+Math.cos(t*69)*shake);ctx.scale(zoom,zoom);ctx.rotate(-.025+smooth(phase(t,0,1.58))*.025);
+    if(t<1.58){
+      ctx.globalAlpha=smooth(phase(t,0,.18));ctx.drawImage(block,-360,-360);ctx.globalAlpha=1;
+      crackLines(ctx,crack,.3+crack*.6+beat*.3);
+      aura(0,16,55+beat*22,'rgba(255,29,6,.4)',.3+crack*.6);
+      cube(0,16,6+crack*4+beat*2,.5+crack*.5,true,0);
+    }else{
+      for(const p of pieces){const direction=Math.atan2(p.y-16,p.x),distance=release*(180+hash(p.n+430)*130);
+        ctx.save();ctx.translate(Math.cos(direction)*distance,Math.sin(direction)*distance+release*release*75);ctx.rotate((hash(p.n+20)-.5)*release*.9);ctx.globalAlpha=fade;ctx.drawImage(p.image,-360,-360);ctx.restore();
+      }
+      for(let i=0;i<34;i++){const a=hash(i+850)*TAU,r=(80+hash(i+860)*240)*release;const x=Math.cos(a)*r,y=16+Math.sin(a)*r+release*release*130;rect(x,y,2+hash(i)*7,2+hash(i+1)*5,i%5===0?'#ff5d2e':'#6e6a5c',fade*(1-release*.5));}
+    }
+    ctx.restore();
+    if(t>=1.58&&t<3.32){
+      const q=smooth(phase(t,1.79,3.12));
+      const point=p=>{const v=1-p;return [v*v*v*960+3*v*v*p*1240+3*v*p*p*1140+p*p*p*1001,v*v*v*532+3*v*v*p*175+3*v*p*p*330+p*p*p*560];};
+      for(let i=18;i>=1;i--){const p=Math.max(0,q-i*.009),[x,y]=point(p);rect(x,y,2+(1-i/20)*5,2+(1-i/20)*4,'#ff3e18',(1-i/20)*.5*(1-phase(t,3.1,3.32)));}
+      const [x,y]=point(q),a=1-phase(t,3.12,3.32);
+      aura(x,y,90,'rgba(255,44,9,.42)',a);cube(x,y,mix(17,6,q),a,true,q*1.4);
+    }
+    if(t>3.08&&t<3.55)aura(1001,560,100+phase(t,3.08,3.55)*130,'rgba(255,65,16,.32)',Math.sin(phase(t,3.08,3.55)*Math.PI));
+  }
   function sculpt(t){
-    const build=out(phase(t,1.35,3.35)),charge=phase(t,3.5,5.7),rush=phase(t,5.44,6.2);
+    const build=out(phase(t,2.05,3.55)),charge=phase(t,3.5,5.7),rush=phase(t,5.44,6.2);
     const scale=.87+smooth(phase(t,3.25,5.44))*.1+Math.pow(rush,4)*19;
     const sx=-425,sy=-504,sw=850,sh=1008;
     ctx.save();ctx.translate(960,548);ctx.rotate(Math.sin(t*.5)*.008-rush*.095);
@@ -40,7 +117,7 @@ export async function createFilm(canvas,options={}){
     aura(52,50,410,'rgba(229,25,9,.22)',build*(.35+charge*.45));
     ctx.globalAlpha=build*(.25+charge*.45);ctx.drawImage(glow,sx-40,sy-40,930,1088);ctx.globalAlpha=1;
     if(build<1){
-      for(const q of shards){const b=out(phase(t,1.25+q.r*.35,2.7+q.r*.7));if(!b)continue;
+      for(const q of shards){const b=out(phase(t,2.05+q.r*.15,3.15+q.r*.35));if(!b)continue;
         const x=q.col*sw/8,y=q.row*sh/10,dx=(q.col-3.5)*(1-b)*180,dy=(q.row-4.5)*(1-b)*120;
         ctx.save();ctx.translate(sx+x+sw/16+dx,sy+y+sh/20+dy);ctx.rotate((1-b)*(q.r-.5)*1.4);ctx.globalAlpha=b;
         ctx.drawImage(stone,x,y,sw/8,sh/10,-sw/16,-sh/20,sw/8+.5,sh/10+.5);ctx.restore();
@@ -52,11 +129,6 @@ export async function createFilm(canvas,options={}){
     ctx.save();ctx.beginPath();ctx.rect(-450,lineY-90,900,110);ctx.clip();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=Math.sin(trace*Math.PI)*.7;ctx.drawImage(redMask,sx,sy);ctx.restore();
     if(charge>0)aura(38,16,65+charge*90,'rgba(255,52,12,.75)',charge*.56);
     ctx.restore();emberField(t,build);
-    if(t<2.15){const p=phase(t,.62,1.65),x=mix(650,1050,p),y=540-Math.sin(p*Math.PI)*105;
-      aura(x,y,85,'rgba(255,39,9,.45)',1-p*.6);
-      for(let i=0;i<12;i++){const q=clamp(p-i*.014);rect(mix(650,1050,q),540-Math.sin(q*Math.PI)*105,4+q*3,4,'#ff3321',(1-i/12)*phase(t,.6,.85)*(1-phase(t,1.65,2.15)));}
-      cube(x,y,12*(1-p)+4,1-phase(t,1.65,2.15),true,p*.7);
-    }
   }
   function tunnel(t){
     const open=out(phase(t,6.05,6.4)),fade=1-smooth(phase(t,7.4,8.5));
@@ -98,8 +170,8 @@ export async function createFilm(canvas,options={}){
     ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';ctx.fillStyle='#050605';ctx.fillRect(0,0,W,H);
     // Fine, restrained film grain. No large background imagery or decorative scene clutter.
     aura(960,540,950,'rgba(40,36,28,.10)');
-    if(t<1.35){const n=1+Math.sin(t*3)*.15,fade=1-phase(t,.8,1.35);aura(960,540,100,'rgba(255,32,10,.22)',fade);cube(960,540,13*n,fade,true,.12+t*.45);}
-    if(t>.62&&t<6.23)sculpt(t);
+    if(t>2.05&&t<6.23)sculpt(t);
+    if(t<3.55)firstPixel(t);
     if(t>6.05&&t<8.5)tunnel(t);
     if(t>7.55)reveal(t);
     if(t>6.10&&t<6.32){const f=Math.sin(phase(t,6.10,6.32)*Math.PI);rect(0,0,W,H,'#fbad76',f*.16);}
@@ -107,7 +179,7 @@ export async function createFilm(canvas,options={}){
     rect(0,0,W,46,'#050605');rect(0,H-46,W,46,'#050605');
     const vignette=ctx.createRadialGradient(960,540,390,960,540,1120);vignette.addColorStop(0,'#0000');vignette.addColorStop(1,'#000b');ctx.fillStyle=vignette;ctx.fillRect(0,0,W,H);
     for(let i=0;i<90;i++){const x=hash(i+Math.floor(t*15))*W,y=hash(i+290)*H;rect(x,y,1,1,'#e8dfc7',.055);}
-    const chapter=t<1.5?'THE SPARK':t<5.5?'THE WORLD':t<7.6?'BEYOND':t<9.2?'BLITZEDO':'PLAY BEYOND';
+    const chapter=t<1.58?'THE FIRST PIXEL':t<3.15?'BREAK FREE':t<5.5?'THE WORLD':t<7.6?'BEYOND':t<9.2?'BLITZEDO':'PLAY BEYOND';
     if(chapter!==lastChapter){if(options.onChapter)options.onChapter(chapter);else if(typeof document!=='undefined')document.querySelector('#chapter').textContent=chapter;lastChapter=chapter;}
   }
   function poster(){draw(3.8);ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);rect(0,0,W,H,'#050605',.57);}
