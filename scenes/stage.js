@@ -86,8 +86,8 @@ export function runStage({container, canvas, scene: built, onFrame}) {
   return {renderer, scene, camera, root, render, stop: () => cancelAnimationFrame(raf)};
 }
 
-// Start a scene only once the page has finished its first work (load, then an idle moment) and the scene is within a
-// screen of view, so the text and form are never held up by the 3D.
+// Start a scene only once the page has finished its first work (load, an idle moment and the wordmark's intro) and the
+// scene is within a screen of view, so the text and form are never held up by the 3D.
 export function whenReady(el) {
   const near = new Promise(resolve => {
     if (!('IntersectionObserver' in window)) return resolve();
@@ -96,5 +96,11 @@ export function whenReady(el) {
   });
   const loaded = document.readyState === 'complete' ? Promise.resolve() : new Promise(r => addEventListener('load', r, {once: true}));
   const idle = () => new Promise(r => (window.requestIdleCallback || (f => setTimeout(f, 60)))(r, {timeout: 700}));
-  return Promise.all([near, loaded.then(idle)]);
+  // the wordmark's pixel intro is SVG, animated on the page's own thread: building a scene under it makes it stutter
+  const wordmark = document.querySelector('.wordmark');
+  const intro = Promise.race([
+    Promise.all((wordmark?.getAnimations?.({subtree: true}) || []).filter(a => a.effect?.getComputedTiming().iterations !== Infinity).map(a => a.finished.catch(() => {}))),
+    new Promise(r => setTimeout(r, 2000))
+  ]);
+  return Promise.all([near, loaded.then(idle), intro]);
 }

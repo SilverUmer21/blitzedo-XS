@@ -68,6 +68,7 @@ try {
   canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();fallback();});
   resize();model.animate(0,!paused);updateMotion();
   let slowFrames=0,measured=0;
+  const SETTLE=1.8;
   function tick(now) {
     frame=requestAnimationFrame(tick);
     const delta=Math.min((now-previous)/1000,.1);previous=now;
@@ -80,12 +81,16 @@ try {
     if(keeper){try{fuse=keeper.update(elapsed-keeperClock);}catch(error){console.warn('Chip stopped.',error);keeper.dispose();keeper=null;keeperState='off';}}
     keeperClock=elapsed;
     model.animate(elapsed,!paused,fuse);
+    // The float eases in from the loading artwork's exact pose rather than leaving it at full speed.
+    const settle=Math.min(1,elapsed/SETTLE),ease=settle*settle*(3-2*settle);
+    model.world.position.multiplyScalar(ease);model.world.rotation.z*=ease;
     model.world.rotation.y=THREE.MathUtils.lerp(model.world.rotation.y,paused?0:pointer.x*.10,.045);
     model.world.rotation.x=THREE.MathUtils.lerp(model.world.rotation.x,paused?0:pointer.y*.035,.045);
     if(paused)elapsed=0;
     const start=performance.now();
     try {renderer.render(scene,camera);} catch {fallback();return;}
-    if(!paused && measured<90){measured++;if(performance.now()-start>24)slowFrames++;if(measured===90&&slowFrames>28){pixelRatio=Math.max(.85,pixelRatio*.7);resize();}}
+    // Frame speed is judged only once the island has settled and Chip has arrived, so start-up work never lowers the resolution.
+    if(!paused && elapsed>SETTLE+1.5 && keeperState!=='loading' && measured<90){measured++;if(performance.now()-start>24)slowFrames++;if(measured===90&&slowFrames>28){pixelRatio=Math.max(.85,pixelRatio*.7);resize();}}
   }
   frame=requestAnimationFrame(tick);
   textures.then(stoneMap=>{
@@ -97,12 +102,12 @@ try {
       container.classList.add('is-3d-ready');if(errorNotice)errorNotice.hidden=true;updateMotion();
       // ?tune opens the red tuning panel (development only).
       if(/[?&]tune\b/.test(globalThis.location?.search||''))import('./tuner.js').then(t=>t.mountTuner(model.world,()=>{if(materialReady)renderer.render(scene,camera);}));
-      // Chip arrives after the reveal, so the first live frame still matches the loading artwork.
-      if(keeperState==='loading')import('./keeper.js').then(({createKeeper})=>{
+      // Chip arrives once the float has settled and the page is idle, so the swap from the artwork stays smooth.
+      if(keeperState==='loading')setTimeout(()=>(globalThis.requestIdleCallback||(f=>f()))(()=>import('./keeper.js').then(({createKeeper})=>{
         if(failed)return;
         keeper=createKeeper({world:model.world,stoneMap,camera,stage:container,still:paused});
         keeperState='on';keeperClock=elapsed;renderer.render(scene,camera);
-      }).catch(error=>{console.warn('Chip could not load.',error);keeperState='off';});
+      }).catch(error=>{console.warn('Chip could not load.',error);keeperState='off';}),{timeout:1200}),SETTLE*1000);
     } catch(error) {
       console.warn('The detailed sculpture material could not render.',error);
       fallback();
