@@ -19,7 +19,8 @@ export function frame(camera, viewHeight, aspect) {
 }
 
 // Runs a scene in a page: sized to its container, a slow float and a slight lean toward the pointer (as the island), paused
-// off screen, in background tabs and with reduced motion. The container gets .is-3d-ready once textures have rendered.
+// off screen, in background tabs and with reduced motion. The container gets .is-3d-ready once textures have rendered,
+// and its loading picture (.scene__poster) steps aside.
 export function runStage({container, canvas, scene: built, onFrame}) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const compact = matchMedia('(max-width: 760px)');
@@ -69,7 +70,9 @@ export function runStage({container, canvas, scene: built, onFrame}) {
     if (!paused) elapsed += dt;
     built.animate?.(elapsed, !paused, dt);
     onFrame?.(elapsed, !paused, dt);
-    root.position.y = paused ? 0 : Math.sin(elapsed * Math.PI * 2 / 6.6) * .05;
+    // the float eases in from the loading picture's pose instead of leaving it at full speed
+    const settle = Math.min(1, elapsed / 1.8), ease = settle * settle * (3 - 2 * settle);
+    root.position.y = paused ? 0 : Math.sin(elapsed * Math.PI * 2 / 6.6) * .05 * ease;
     root.rotation.y = THREE.MathUtils.lerp(root.rotation.y, paused ? 0 : pointer.x * .08, .045);
     root.rotation.x = THREE.MathUtils.lerp(root.rotation.x, paused ? 0 : pointer.y * .03, .045);
     const t0 = performance.now();
@@ -80,6 +83,8 @@ export function runStage({container, canvas, scene: built, onFrame}) {
       if (measured === 90 && slow > 25) { pixelRatio = Math.max(.85, pixelRatio * .7); resize(); }
     }
   }
+  // the first frame is the scene's own pose at time 0, the moment its loading picture was taken (tools/scene-poster.html)
+  built.animate?.(0, !paused, 0);
   resize();
   container.classList.add('is-3d-ready');
   raf = requestAnimationFrame(tick);

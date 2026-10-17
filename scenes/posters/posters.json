@@ -1,0 +1,38 @@
+{
+  "mailbox": {
+    "inputs": {
+      "island/assets/pixel-edge-v9.webp": "46ae2ffd0d8f74b5bc8a3e1723ff80e2de14bd8f51d31704b1ec6441887d61a1",
+      "island/assets/pixel-red-v9.webp": "767b63174bc39432e3987fa0c6d326dee1a14b003f318ff7657143fdc4082002",
+      "island/assets/pixel-stone-v9.webp": "2be0fa4f81826a8b3fc0af1482428e4affd958b5f82b5464ebe70b0925634c40",
+      "island/chip.js": "ee75dfdb4de066fff81de7d35b55e0e5a2be21648767f98d0a4489386f542e6f",
+      "island/reference-shading.js": "f4c7f6fcf76a3e7bd40a7218e87a9db14dea87bde306f0c187760eb0fb001a75",
+      "island/stone.js": "9dc4546958e1c572a8a9243fb61c4a22a1f88d303d95961519cc0c7caabcc7b6",
+      "scenes/kit.js": "4804f0e5e6977b803c111198dae37177b90cd6dbde2bb4413e21b419ebb9fff0",
+      "scenes/mailbox.js": "aa87a4506764af43617a1fba86d574db71b4a4ebc725472281084c22b33f2609",
+      "scenes/shading.js": "64a3dffdb211e8b82d894d5158bfb7e2eac9e22490d8d12c9e282f3ad6b05932",
+      "scenes/stage.js": "c432397bff0e78b536ad1129723d2b4e91100a3d5e4aee298fdd381334e9882d"
+    },
+    "pictures": {
+      "mailbox-1520.webp": "8578e85f46c460b7b5c886db322e43935132b6d50025ecdb3a3c642ffc1ab63f",
+      "mailbox-760.webp": "5bcbd84dcd36e00d0e2a695eabb1ab8315ced4af48a3d1b3f0a854e0f1dcc7bd"
+    }
+  },
+  "workshop": {
+    "inputs": {
+      "island/assets/pixel-edge-v9.webp": "46ae2ffd0d8f74b5bc8a3e1723ff80e2de14bd8f51d31704b1ec6441887d61a1",
+      "island/assets/pixel-red-v9.webp": "767b63174bc39432e3987fa0c6d326dee1a14b003f318ff7657143fdc4082002",
+      "island/assets/pixel-stone-v9.webp": "2be0fa4f81826a8b3fc0af1482428e4affd958b5f82b5464ebe70b0925634c40",
+      "island/chip.js": "ee75dfdb4de066fff81de7d35b55e0e5a2be21648767f98d0a4489386f542e6f",
+      "island/reference-shading.js": "f4c7f6fcf76a3e7bd40a7218e87a9db14dea87bde306f0c187760eb0fb001a75",
+      "island/stone.js": "9dc4546958e1c572a8a9243fb61c4a22a1f88d303d95961519cc0c7caabcc7b6",
+      "scenes/kit.js": "4804f0e5e6977b803c111198dae37177b90cd6dbde2bb4413e21b419ebb9fff0",
+      "scenes/shading.js": "64a3dffdb211e8b82d894d5158bfb7e2eac9e22490d8d12c9e282f3ad6b05932",
+      "scenes/stage.js": "c432397bff0e78b536ad1129723d2b4e91100a3d5e4aee298fdd381334e9882d",
+      "scenes/workshop.js": "6e7af5ed10b12e1f724b281bac857dc3c5d94233fce4722db250734b101ce269"
+    },
+    "pictures": {
+      "workshop-1520.webp": "922e22d9b8feb9ea59b90ec47294ecfcb7e15c560a545511b844776e1e40888e",
+      "workshop-760.webp": "a03a908c0e2db9d7542b4ed4ea442caf0893f0b6af07e7bf7eb2aa761b1a9b65"
+    }
+  }
+}

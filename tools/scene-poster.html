@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scene poster</title>
+<style>html, body { margin: 0; background: #090A08; } #stage { position: relative; width: 760px; aspect-ratio: 1.4; }</style>
+</head>
+<body>
+<div id="stage"><canvas></canvas></div>
+<script type="module">
+// The loading picture for a page's scene (?scene=mailbox|workshop): the scene built and started exactly as the page does
+// (js/contact-scene.js, js/studio-scene.js, scenes/stage.js's runStage), and its first frame read back. Open it with the
+// dev server at a device pixel ratio of 2; window.__poster is the PNG. The pages show it with object-fit: cover, which
+// is exact because the camera always frames the same height around the same centre: a narrower stage only crops sides.
+//   then: python3 tools/poster/scene_finish.py <scene> <png>   (writes scenes/posters/<scene>.webp and the manifest)
+import { loadStoneTexture } from '../island/stone.js?v=embers-13';
+import { woodAtlas, mipmapped } from '../scenes/kit.js';
+import { buildMailbox } from '../scenes/mailbox.js';
+import { buildWorkshop } from '../scenes/workshop.js';
+import { runStage } from '../scenes/stage.js';
+
+const name = new URLSearchParams(location.search).get('scene') || 'mailbox';
+const container = document.getElementById('stage');
+const canvas = container.querySelector('canvas');
+canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
+const stoneMap = await loadStoneTexture();
+for (const t of [stoneMap, stoneMap.userData.red]) mipmapped(t);
+const maps = {stone: stoneMap, red: stoneMap.userData.red, edge: stoneMap.userData.edge};
+const built = name === 'workshop' ? buildWorkshop({maps: {...maps, wood: woodAtlas()}, stoneMap}) : buildMailbox({maps, stoneMap});
+const stage = runStage({container, canvas, scene: built});
+stage.stop();
+stage.render();
+window.__poster = canvas.toDataURL('image/png');
+</script>
+</body>
+</html>

@@ -433,9 +433,12 @@ a { color: inherit; text-decoration: none; }
   width: 100%;
   height: 100%;
   opacity: 0;
-  transition: opacity 0.5s ease;
 }
 .scene__stage.is-3d-ready .scene__canvas { opacity: 1; }
+/* the scene's first frame as a picture (tools/scene-poster.html): shown until the live scene takes over in one step. Cover
+   fitting is exact, since the camera frames the same height around the same centre at any stage width. */
+.scene__poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.scene__stage.is-3d-ready .scene__poster { visibility: hidden; }
 /* while textures load: a faint floor glow where the scene will stand, so the space reads as intended */
 .scene__hold {
   position: absolute;
