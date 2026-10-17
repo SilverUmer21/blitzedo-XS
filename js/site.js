@@ -3,7 +3,6 @@
  * - switching tabs pauses the game: the tab's title says so and its icon (the pixel b) turns into Chip asleep; coming
  *   back, Chip says hello, and the page hears `blitzedo:back` (detail.away: seconds gone), which wakes the island's Chip;
  * - a page is fetched the moment a pointer or focus heads for its link, so moving between pages rarely waits;
- * - the stages a visitor has reached are remembered for the level select (games.html);
  * - a note for whoever opens the developer console.
  */
 (function () {
@@ -56,16 +55,6 @@
     document.head.appendChild(hint);
   }
   ['pointerover', 'touchstart', 'focusin'].forEach(function (type) { document.addEventListener(type, prefetch, {passive: true}); });
-
-  // ---- stages reached ------------------------------------------------------------------------------------------
-  try {
-    var file = location.pathname.split('/').pop() || 'index.html';
-    var seen = JSON.parse(localStorage.getItem('blitzedo:stages') || '[]');
-    if (['index.html', 'studio.html', 'contact.html'].indexOf(file) >= 0 && seen.indexOf(file) < 0) {
-      seen.push(file);
-      localStorage.setItem('blitzedo:stages', JSON.stringify(seen));
-    }
-  } catch (e) {}
 
   // ---- the back door -------------------------------------------------------------------------------------------
   var sprite = new URL('../assets/chip-sprites.png', base).href;

@@ -596,38 +596,58 @@ a { color: inherit; text-decoration: none; }
     radial-gradient(22% 16% at 60% 52%, rgba(174, 18, 18, 0.14), transparent 70%);
 }
 
-/* ---------- Games: the level select ---------- */
-.stages { display: grid; gap: clamp(40px, 5vw, 80px); padding: clamp(32px, 4.5vw, 72px) var(--gutter) clamp(48px, 6vw, 96px); }
-.stages__copy { display: grid; gap: clamp(16px, 1.8vw, 28px); justify-items: start; }
-.stages__lede { margin: 0; font-size: clamp(19px, 1.7vw, 28px); max-width: 32ch; }
-.stage-map { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(14px, 2vw, 32px); margin: 0; padding: 0; list-style: none; counter-reset: stage; }
-/* each stage is a stone block: red-capped once cleared, like the island's lit stones */
-.stage-tile { position: relative; }
-.stage-tile > a, .stage-tile.is-locked {
+/* ---------- Games: the forge (js/forge.js) ---------- */
+/* While the first game is being made: Chip pounds a glowing block on an anvil until it is the blitzedo b. */
+.arcade {
   display: grid;
-  gap: 6px;
-  align-content: end;
-  min-height: clamp(150px, 15vw, 230px);
-  padding: clamp(16px, 1.6vw, 24px);
-  background: var(--charcoal);
-  border-top: 8px solid #3a3b37;
-  box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.35);
-  transition: transform 0.16s steps(2, end);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  column-gap: clamp(24px, 3vw, 56px);
+  row-gap: 32px;
+  align-items: center;
+  padding: clamp(32px, 4.5vw, 72px) var(--gutter) clamp(48px, 6vw, 96px);
 }
-.stage-tile.is-cleared > a { border-top-color: #E8332A; }
-.stage-tile > a:hover, .stage-tile > a:focus-visible { transform: translateY(-6px); }
-.stage-tile__no { font-size: clamp(40px, 4.4vw, 72px); font-weight: 700; letter-spacing: -0.04em; line-height: 0.9; color: var(--ivory); }
-.stage-tile__name { font-size: clamp(17px, 1.35vw, 22px); font-weight: 600; }
-.stage-tile__state { font-size: 12px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ivory-muted); }
-.stage-tile.is-cleared .stage-tile__state { color: #FF7A52; }
-.stage-tile.is-locked { background: #141513; border-top-color: #262724; }
-.stage-tile.is-locked .stage-tile__no, .stage-tile.is-locked .stage-tile__name { color: rgba(244, 240, 230, 0.32); }
-/* a pixel padlock (4 px pixels, drawn with box-shadow) */
-.stage-tile__lock { position: absolute; top: clamp(18px, 1.8vw, 26px); right: clamp(30px, 2.6vw, 40px); width: 4px; height: 4px; color: #E8332A; box-shadow: 8px 0px currentColor, 12px 0px currentColor, 16px 0px currentColor, 4px 4px currentColor, 20px 4px currentColor, 4px 8px currentColor, 20px 8px currentColor, 0px 12px currentColor, 4px 12px currentColor, 8px 12px currentColor, 12px 12px currentColor, 16px 12px currentColor, 20px 12px currentColor, 24px 12px currentColor, 0px 16px currentColor, 4px 16px currentColor, 8px 16px currentColor, 16px 16px currentColor, 20px 16px currentColor, 24px 16px currentColor, 0px 20px currentColor, 4px 20px currentColor, 8px 20px currentColor, 16px 20px currentColor, 20px 20px currentColor, 24px 20px currentColor, 0px 24px currentColor, 4px 24px currentColor, 8px 24px currentColor, 12px 24px currentColor, 16px 24px currentColor, 20px 24px currentColor, 24px 24px currentColor; animation: lock-rattle 3.2s steps(1, end) infinite; }
-@keyframes lock-rattle { 0%, 88%, 100% { transform: none; } 90% { transform: translateX(-3px); } 93% { transform: translateX(3px); } 96% { transform: translateX(-2px); } }
-@media (max-width: 760px) {
-  .stage-map { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.arcade__copy { display: grid; gap: clamp(16px, 1.8vw, 28px); justify-items: start; min-width: 0; }
+.arcade__lede { margin: 0; font-size: clamp(19px, 1.7vw, 28px); max-width: 30ch; }
+@media (max-width: 900px) { .arcade { grid-template-columns: minmax(0, 1fr); padding-top: 28px; } }
+.forge {
+  position: relative;
+  margin: 0;
+  aspect-ratio: 4 / 3.4;
+  overflow: hidden;
+  border-radius: 8px;
+  background: radial-gradient(60% 50% at 62% 70%, rgba(232, 51, 42, 0.22), transparent 70%), linear-gradient(#0c0d0b, #121311);
 }
+.forge.is-shake { animation: forge-shake 0.14s steps(2) 1; }
+@keyframes forge-shake { 0% { transform: translate(2px, 1px); } 50% { transform: translate(-2px, -1px); } 100% { transform: none; } }
+.forge__sparks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.forge__hud { position: absolute; left: 14px; right: 14px; top: 14px; display: flex; justify-content: space-between; align-items: center; color: var(--ivory-muted); font-size: 12px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; }
+.forge__heat { display: grid; grid-template-columns: repeat(10, 10px); gap: 3px; }
+.forge__heat i { height: 8px; background: rgba(244, 240, 230, 0.14); }
+.forge__heat i.is-on { background: #FF7A52; }
+.forge__floor { position: absolute; left: 0; right: 0; bottom: 0; height: 22%; background: repeating-linear-gradient(90deg, #191a17 0 38px, #151613 38px 40px); border-top: 3px solid #26272a; }
+.anvil { position: absolute; left: 50%; bottom: 22%; width: 46%; height: 26%; }
+.anvil i { position: absolute; display: block; }
+.anvil__top { left: 0; right: 0; top: 0; height: 30%; background: #34352f; box-shadow: inset 0 4px 0 #4a4b44; clip-path: polygon(0 0, 100% 0, 100% 100%, 12% 100%); }
+.anvil__waist { left: 26%; right: 26%; top: 30%; height: 38%; background: #282925; }
+.anvil__foot { left: 14%; right: 14%; bottom: 0; height: 32%; background: #30312c; box-shadow: inset 0 3px 0 #3d3e38; }
+/* the block: the 7 x 9 cells of the wordmark's pixel b, plus the stone around it that the strikes knock away */
+.ingot { position: absolute; left: 50%; bottom: 48%; display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(9, 1fr); width: 22%; aspect-ratio: 7 / 9; transform: translateX(14%); }
+.ingot i { background: #ff5a2a; box-shadow: 0 0 10px rgba(255, 90, 42, 0.7); transition: opacity 0.12s steps(2); }
+.ingot i.is-gone { opacity: 0; }
+.ingot.is-hot i { background: #ffd2a8; box-shadow: 0 0 18px rgba(255, 180, 120, 0.95); }
+/* Chip: assets/chip-forge.png (48 px cells: fists up, the slam, a cheer, idle), drawn at 2x */
+.forge__chip {
+  position: absolute;
+  left: 24%;
+  bottom: 20%;
+  width: 96px;
+  height: 96px;
+  background: url("../assets/chip-forge.png") 0 0 / 384px 96px no-repeat;
+  image-rendering: pixelated;
+  transform: scale(1.15);
+  transform-origin: bottom left;
+}
+@media (min-width: 1200px) { .forge__chip { transform: scale(1.6); } }
 
 /* ---------- 404: game over ---------- */
 .over { display: grid; justify-items: center; align-content: center; gap: 18px; min-height: calc(100svh - var(--header-h)); padding: 32px var(--gutter) 64px; text-align: center; }

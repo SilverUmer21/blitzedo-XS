@@ -12,6 +12,7 @@
 // the favicons and the 404 page. ?cell=48 sets the frame size. Sets window.__sheet (PNG data URL) and window.__frames.
 // Open it with the dev server (node serve.mjs). assets/chip-sprites.png is the cell=48 sheet; the icons in assets/icons
 // are frames cut from the 16, 32, 48 and 64 sheets ('face'/'faceSleep' for the tab, 'idle' on a dark tile for apps).
+// assets/chip-forge.png is ?set=forge&cell=48.
 import * as THREE from '../island/assets/vendor/three.module.js';
 import { createChip, poseChip, CHIP_POSES, CHIP_FACES } from '../island/chip.js';
 import { loadStoneTexture } from '../island/stone.js?v=embers-13';
@@ -32,7 +33,14 @@ renderer.setPixelRatio(1);
 renderer.setSize(CELL * SUPER, CELL * SUPER, false);
 
 // Frames: [name, facing (radians, 0 = toward the viewer), pose]
-const FRAMES = [
+// ?set=forge renders the Games page's forge frames instead (assets/chip-forge.png): fists up, the slam, a cheer, idle.
+const FORGE = [
+  ['pound0', .55, {arms: [3.0, 3.0], armsBack: [-.4, -.4], squash: 1.06, look: [.4, -.3], brows: {tilt: -.45}, mouth: 'flat'}],
+  ['pound1', .55, {arms: [1.2, 1.2], armsBack: [1.2, 1.2], lean: .22, squash: .86, legs: .8, look: [.4, -.6], brows: {tilt: -.5}, mouth: 'o'}],
+  ['cheer', .2, {...CHIP_FACES.joy, arms: [2.7, 2.7], lift: .08}],
+  ['idle', .55, CHIP_POSES.idle]
+];
+const SHEET = [
   ['run0', .9, {...CHIP_POSES.ready, lean: .05, look: [.6, 0]}],
   ['run1', .9, {...CHIP_POSES.hop, lift: .14, lean: 0, look: [.6, .3]}],
   ['run2', .9, {...CHIP_POSES.hop, lift: .2, lean: 0, squash: 1.06, look: [.6, .3]}],
@@ -45,6 +53,7 @@ const FRAMES = [
   ['face', .25, {look: [0, .1], brows: {raise: .012}, mouth: 'small'}],
   ['faceSleep', .25, {blink: 1, tilt: .1, mouth: 'small'}]
 ];
+const FRAMES = q.get('set') === 'forge' ? FORGE : SHEET;
 const sheet = document.getElementById('sheet');
 sheet.width = CELL * FRAMES.length; sheet.height = CELL;
 const ctx = sheet.getContext('2d');
