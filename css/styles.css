@@ -688,3 +688,26 @@ html.blit-in::after { content: ""; position: fixed; inset: 0; z-index: 1000; bac
 .over__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px 32px; margin-top: 12px; }
 .over .btn { order: 0; margin: 0 !important; min-width: clamp(220px, 20vw, 320px); font-size: clamp(19px, 1.6vw, 26px); }
 @media (max-width: 760px) { .over__actions { flex-direction: column; width: 100%; } }
+
+/* Chip's poke combo (island/keeper.js): a count popping over its head, arcade style */
+.chip-combo {
+  position: absolute;
+  z-index: 2;
+  color: #FF7A52;
+  font-size: clamp(18px, 1.6vw, 26px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow: 3px 3px 0 #3a0907;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  animation: chip-combo 0.9s steps(6, end) forwards;
+}
+@keyframes chip-combo {
+  0% { transform: translate(-50%, -60%) scale(0.6); opacity: 1; }
+  25% { transform: translate(-50%, -110%) scale(1.15); }
+  70% { transform: translate(-50%, -150%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -180%) scale(1); opacity: 0; }
+}

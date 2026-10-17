@@ -6,8 +6,10 @@ import { createChip, createEmber, poseChip, CHIP_FACES } from './chip.js';
 //   walk into the gate and toss it in. That lights the fuse: the gate rings and the pulse climbs the stairs Chip came
 //   down. Then a few chores on the island (look around, sweep, sit, doze if nobody is around), and back up for the
 //   ember, which has rekindled in the niche.
-// Visitors can hover Chip (it waves), click it (it jumps; click again for a twirl), click the open island (it walks
-// there) and hover Explore games (it turns and waves). Reduced motion shows Chip standing still by the gate.
+// Visitors can hover Chip (it waves), click it (it jumps; click again for a twirl; keep poking for a combo that ends
+// dizzy), click the open island (it walks there) and hover Explore games (it turns and waves). Chip's eyes follow the
+// pointer, it waves when a visitor scrolls back or returns to the page (startled awake if it had been a while), it greets
+// returning visitors, and it knows the Konami code. Reduced motion shows Chip standing still by the gate.
 //
 // Positions are island-local, before world.js's non-uniform scale; Chip lives in a container that undoes that scale so
 // it is never stretched. Behaviour is written as generators: each yields once per frame and receives the frame's dt.
@@ -76,11 +78,25 @@ export function createKeeper({world, stoneMap, camera, stage, still = false}) {
   hitBox.position.y = .43;
   chip.root.add(hitBox);
 
+  // Stars that circle Chip's head when it is dizzy.
+  const stars = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    const star = new THREE.Mesh(new THREE.BoxGeometry(.06, .06, .06), new THREE.MeshBasicMaterial({color: i === 1 ? 0xe8332a : 0xfbf5eb, toneMapped: false}));
+    star.userData.phase = i * Math.PI * 2 / 3;
+    stars.add(star);
+  }
+  stars.position.y = chip.height + .12;
+  stars.visible = false;
+  chip.root.add(stars);
+
   const k = {
     pos: TOP.clone(), facing: 0, targetFacing: 0, pose: {...IDLE}, fuse: -100, time: 0,
     pending: null, pendingAt: 0, react: null, lastActivity: 0, interruptible: false, hovered: false,
-    squeeze: 1, nicheGlow: 1
+    squeeze: 1, nicheGlow: 1, dizzy: false, gaze: null
   };
+  // Visits so far (this one included): a returning visitor gets a wave as soon as Chip is out.
+  let visits = 1;
+  try { visits = +(localStorage.getItem('blitzedo:visits') || 0) + 1; localStorage.setItem('blitzedo:visits', String(visits)); } catch (e) {}
   const rand = Math.random;
   const viewAngle = () => {                            // the rotation that faces the camera, in Chip's space
     const dir = camera.getWorldDirection(new THREE.Vector3()).negate();
@@ -160,8 +176,10 @@ export function createKeeper({world, stoneMap, camera, stage, still = false}) {
     yield* hop(TOP, {height: 0, dur: .01, ready: .01, land: .2});
     yield* wait(.5, {...CHIP_FACES.curious, look: [-.8, .2]});
     yield* wait(.5, {...CHIP_FACES.curious, look: [.8, .2]});
+    yield* playful();
   }
   function* takeEmber() {
+    yield* playful();
     yield* turn(Math.PI, IDLE, .3);
     yield* wait(.35, {lean: .14, arms: [.3, .3], armsBack: [-1.3, -1.3], look: [0, -.2], brows: {tilt: -.3}, mouth: 'flat'}, {breathe: false});
     k.nicheGlow = 0;
@@ -289,6 +307,42 @@ export function createKeeper({world, stoneMap, camera, stage, still = false}) {
       }
       yield* hop(k.pos.clone(), {height: 0, dur: .01, ready: .01, land: .16, base: {...CHIP_FACES.joy, ...keep}});
       yield* wait(.5, {...CHIP_FACES.joy, ...keep});
+    } else if (kind === 'dizzy') {
+      // Poked once too often: spun round twice, a wobble under circling stars, then a firm look at the visitor.
+      k.targetFacing = viewAngle();
+      const from = k.facing;
+      let t = 0;
+      while (t < .7) { t += yield; const u = Math.min(1, t / .7); k.facing = k.targetFacing = from + easeOut(u) * Math.PI * 4; k.pose = {...CHIP_FACES.oof, squash: 1.05, arms: 1.8, ...keep}; }
+      k.dizzy = true;
+      t = 0;
+      while (t < 1.6) { t += yield; k.pose = {...CHIP_FACES.oof, blink: .5, tilt: Math.sin(t * 9) * .18, lean: Math.sin(t * 6) * .08, squash: .95, look: [Math.sin(t * 11), Math.cos(t * 11) * .6], ...keep}; }
+      k.dizzy = false;
+      yield* wait(.25, {squash: 1.1, ...CHIP_FACES.determined, ...keep}, {breathe: false});
+      k.targetFacing = viewAngle();
+      yield* wait(.8, {...CHIP_FACES.determined, look: [0, .1], brows: {tilt: -.55, raise: -.01}, ...keep});
+    } else if (kind === 'startle') {
+      // Back from another tab: a jolt (and a wake-up if it had been a while), then a wave hello.
+      k.targetFacing = viewAngle();
+      if (data.away > 30) yield* wait(.5, {...CHIP_FACES.sleepy, blink: 1, legs: .5, squash: .9, ...keep});
+      let t = 0;
+      while (t < .3) { t += yield; const u = Math.min(1, t / .3); k.pose = {...CHIP_FACES.oof, blink: 0, lift: .2 * 4 * u * (1 - u), squash: lerp(1.15, 1, u), arms: 2.2, tuft: .4, ...keep}; }
+      yield* hop(k.pos.clone(), {height: 0, dur: .01, ready: .01, land: .14, base: {...CHIP_FACES.curious, ...keep}});
+      yield* respond('wave', {});
+    } else if (kind === 'secret') {
+      // The Konami code: a triple spin high in the air, and the gate fires on landing.
+      k.targetFacing = viewAngle();
+      yield* wait(.15, {squash: .78, legs: .7, armsBack: .7, ...CHIP_FACES.determined, ...keep}, {breathe: false});
+      const from = k.facing;
+      let t = 0;
+      while (t < .9) {
+        t += yield;
+        const u = Math.min(1, t / .9);
+        k.facing = k.targetFacing = from + u * Math.PI * 6;
+        k.pose = {...CHIP_FACES.joy, lift: .75 * 4 * u * (1 - u), squash: lerp(1.16, 1, u), arms: 2.6, legs: .6, tuft: lerp(-.5, .3, u), ...keep};
+      }
+      yield* hop(k.pos.clone(), {height: 0, dur: .01, ready: .01, land: .2, base: {...CHIP_FACES.proud, ...keep}, dust: true});
+      k.fuse = FUSE_LIT;
+      yield* wait(1, {...CHIP_FACES.proud, arms: [.15, 2.7], ...keep});
     } else if (kind === 'wave') {
       k.targetFacing = viewAngle();
       let t = 0;
@@ -298,6 +352,7 @@ export function createKeeper({world, stoneMap, camera, stage, still = false}) {
 
   function* life() {
     yield* emerge();
+    if (visits > 1) yield* respond('wave', {});
     for (;;) {
       yield* takeEmber();
       yield* descend();
@@ -327,9 +382,49 @@ export function createKeeper({world, stoneMap, camera, stage, still = false}) {
   };
   const listeners = [];
   const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); listeners.push([target, type, fn]); };
-  let lastJump = -10, lastWave = -10;
+  let lastJump = -10, lastWave = -10, combo = 0;
+  // Where Chip's head is on the page, in CSS pixels relative to the stage.
+  const headOnStage = () => {
+    const p = chip.root.localToWorld(new THREE.Vector3(0, chip.height * .8, 0)).project(camera);
+    const r = stage.getBoundingClientRect();
+    return {x: (p.x + 1) / 2 * r.width, y: (1 - p.y) / 2 * r.height, rect: r};
+  };
+  // A combo count popping over Chip, arcade style.
+  function showCombo(text) {
+    const head = headOnStage(), badge = document.createElement('span');
+    badge.className = 'chip-combo';
+    badge.textContent = text;
+    badge.style.left = head.x + 'px';
+    badge.style.top = head.y + 'px';
+    stage.appendChild(badge);
+    setTimeout(() => badge.remove(), 900);
+  }
   if (!still) {
-    on(window, 'pointermove', () => { k.lastActivity = k.time; }, {passive: true});
+    on(window, 'pointermove', event => {
+      k.lastActivity = k.time;
+      if (event.pointerType !== 'touch') k.gaze = {x: event.clientX, y: event.clientY, at: k.time};
+    }, {passive: true});
+    on(document, 'blitzedo:back', event => {
+      const away = event.detail && event.detail.away || 0;
+      k.lastActivity = k.time;
+      if (away > 4) request('startle', {away});
+    });
+    // Scrolling back up to the island after a while away from it earns a wave.
+    let leftAt = 0;
+    const seen = new IntersectionObserver(entries => {
+      const visible = entries[0].isIntersecting;
+      if (!visible) leftAt = performance.now();
+      else if (leftAt && performance.now() - leftAt > 3000) { k.lastActivity = k.time; request('wave'); }
+    }, {threshold: .35});
+    seen.observe(stage);
+    listeners.push([{removeEventListener: () => seen.disconnect()}, '', null]);
+    const konami = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+    let typed = 0;
+    on(window, 'keydown', event => {
+      const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+      typed = key === konami[typed] ? typed + 1 : key === konami[0] ? 1 : 0;
+      if (typed === konami.length) { typed = 0; request('secret'); }
+    });
     on(window, 'keydown', () => { k.lastActivity = k.time; });
     on(window, 'scroll', () => { k.lastActivity = k.time; }, {passive: true});
     on(stage, 'pointermove', event => {
@@ -347,9 +442,12 @@ export function createKeeper({world, stoneMap, camera, stage, still = false}) {
       k.lastActivity = k.time;
       pointAt(event);
       if (raycaster.intersectObject(hitBox).length) {
-        k.react = {face: CHIP_FACES.joy, until: k.time + .8};
-        request(k.time - lastJump < 1.6 ? 'twirl' : 'jump');
+        combo = k.time - lastJump < 1.6 ? combo + 1 : 1;
         lastJump = k.time;
+        if (combo >= 5) { combo = 0; showCombo('Dizzy!'); request('dizzy'); return; }
+        if (combo >= 2) showCombo('×' + combo);
+        k.react = {face: CHIP_FACES.joy, until: k.time + .8};
+        request(combo >= 2 ? 'twirl' : 'jump');
         return;
       }
       const hit = raycaster.intersectObjects(islandMeshes, false)[0];
@@ -380,6 +478,19 @@ export function createKeeper({world, stoneMap, camera, stage, still = false}) {
     if (k.react && k.time < k.react.until) pose = {...pose, ...k.react.face, eyes: k.react.face.eyes ?? pose.eyes};
     if (k.time > blinkAt) { blinkUntil = k.time + .12; blinkAt = k.time + 2.2 + rand() * 3.2; }
     if (k.time < blinkUntil && !pose.blink && pose.eyes !== 'happy') pose.blink = .95;
+    // The eyes follow the pointer while it moves (and for a moment after), when Chip is turned toward the visitor.
+    if (k.gaze && k.time - k.gaze.at < 2.5 && !k.dizzy && pose.eyes !== 'happy') {
+      const toViewer = Math.cos(k.facing - viewAngle());
+      if (toViewer > .35) {
+        const head = headOnStage();
+        const gx = THREE.MathUtils.clamp((k.gaze.x - head.rect.left - head.x) / 260, -1, 1);
+        const gy = THREE.MathUtils.clamp(-(k.gaze.y - head.rect.top - head.y) / 260, -1, 1);
+        const base = pose.look || [0, 0], w = Math.min(1, (toViewer - .35) * 3) * .85;
+        pose.look = [lerp(base[0], gx, w), lerp(base[1], gy, w)];
+      }
+    }
+    stars.visible = k.dizzy;
+    if (k.dizzy) stars.children.forEach(star => { const a = star.userData.phase + k.time * 7; star.position.set(Math.cos(a) * .3, Math.sin(a * 2) * .03, Math.sin(a) * .3); });
     poseChip(chip, pose);
     toSpace(k.pos, chip.group.position);
     let d = k.targetFacing - k.facing;
@@ -394,6 +505,8 @@ export function createKeeper({world, stoneMap, camera, stage, still = false}) {
   }
   apply();
 
+  // Development hook: ?chip exposes where Chip's head is and its requests, for the interaction checks.
+  if (/[?&]chip\b/.test(location.search)) window.__keeper = {head: () => { const h = headOnStage(); return {x: h.rect.left + h.x, y: h.rect.top + h.y}; }, request, state: k};
   const api = {
     chip,
     // Advance by dt seconds; returns the fuse time for the island's shaders.
@@ -402,7 +515,8 @@ export function createKeeper({world, stoneMap, camera, stage, still = false}) {
       dt = Math.min(dt, .1);
       k.time += dt;
       if (k.fuse > -50) k.fuse += dt;
-      if (k.pending && k.time - k.pendingAt > 2.5) k.pending = null;
+      // Requests Chip cannot get to soon expire; the bigger moments (dizzy, startle, the secret) wait longer for a gap.
+      if (k.pending && k.time - k.pendingAt > (['dizzy', 'startle', 'secret'].includes(k.pending.kind) ? 7 : 2.5)) k.pending = null;
       task.next(dt);
       apply();
       return k.fuse;
