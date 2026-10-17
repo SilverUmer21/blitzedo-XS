@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080907">
+  <title>Ignition — Blitzedo</title>
+  <meta name="description" content="Ignition. A motion identity for Blitzedo. One spark. A world. Play beyond.">
+  <link rel="icon" href="assets/icons/favicon-32.png">
+  <link rel="stylesheet" href="motion/intro.css">
+</head>
+<body>
+  <header class="masthead"><a href="index.html" aria-label="Blitzedo home"><img src="assets/wordmark.svg" alt="blitzedo"></a><span>STUDIO IDENT <i></i> IGNITION</span><a class="back" href="index.html">Visit studio <span>↗</span></a></header>
+  <main>
+    <section class="heading"><div><p class="eyebrow">BLITZEDO IN MOTION</p><h1>Ignition<span>.</span></h1></div><p class="intro-note">A single spark.<br>A whole world on the other side.</p></section>
+    <section class="player" aria-label="Blitzedo studio intro player">
+      <canvas id="film" width="1920" height="1080" aria-label="Animated Blitzedo studio intro: a spark forms the stone b, rushes through its gate and assembles the studio wordmark." role="img"></canvas>
+      <button class="launch" id="launch" disabled><span class="launch-icon">↗</span><span id="launch-label">Preparing the spark</span><small>BEST WITH SOUND</small></button>
+      <a class="skip" href="index.html">Skip intro ↗</a>
+      <div class="film-meta" aria-hidden="true"><span>BLITZEDO</span><span id="chapter">IGNITION</span></div>
+      <div class="end-actions" hidden><button id="again">↻ &nbsp; Replay</button><a href="index.html">Enter the studio ↗</a></div>
+    </section>
+    <div class="transport">
+      <button id="play" disabled aria-label="Play intro">▶</button>
+      <span class="clock" id="clock">00:00</span><input type="range" id="seek" min="0" max="12.8" value="0" step="0.01" aria-label="Intro timeline"><span class="clock" id="duration">00:13</span>
+      <button id="sound" aria-pressed="true">Sound <span>on</span></button><button id="fullscreen" aria-label="View intro fullscreen">⛶</button>
+    </div>
+    <footer class="options"><div class="cuts" aria-label="Choose intro length"><button class="selected" data-cut="studio" aria-pressed="true">Studio cut <span>13s</span></button><button data-cut="web" aria-pressed="false">Website cut <span>7s</span></button></div><button id="export" disabled>Save film <span>↓</span></button><span id="status" role="status" aria-live="polite"></span></footer>
+    <p class="motion-note" hidden>Your device prefers less motion. The finished logo is shown; press Play to watch the intro.</p>
+  </main>
+  <script type="module" src="motion/intro.js"></script>
+</body>
+</html>

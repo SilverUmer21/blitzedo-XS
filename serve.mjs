@@ -6,7 +6,9 @@ import {resolve,join,extname,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const root=fileURLToPath(new URL('./',import.meta.url));
-const port=Number(process.argv[2]||process.env.PORT||8000);
+const args=process.argv.slice(2),portIndex=args.indexOf('--port'),hostIndex=args.indexOf('--host');
+const port=Number((portIndex>=0?args[portIndex+1]:args.find(arg=>/^\d+$/.test(arg)))||process.env.PORT||8000);
+const host=(hostIndex>=0?args[hostIndex+1]:null)||'127.0.0.1';
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.mp4':'video/mp4','.woff2':'font/woff2','.txt':'text/plain; charset=utf-8'};
 const server=createServer(async(req,res)=>{
   try{
@@ -26,4 +28,4 @@ const server=createServer(async(req,res)=>{
   }
 });
 server.on('error',error=>{console.error(error.message);process.exitCode=1;});
-server.listen(port,'127.0.0.1',()=>console.log(`blitzedo: http://localhost:${port}`));
+server.listen(port,host,()=>console.log(`blitzedo: http://localhost:${port}`));
