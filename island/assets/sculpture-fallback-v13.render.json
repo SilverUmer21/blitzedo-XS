@@ -2,7 +2,7 @@
   "renderer": "Browser WebGL via tools/poster/capture.html (live island modules, 2x render, premultiplied Lanczos downsample)",
   "artworkSha256": "59520a34c1d598cf3711a349601197bdbadc3c8bb6b2030eda2ac6a41034d552",
   "inputs": {
-    "island/world.js": "6d0ef6123eca9b3deab6798562c11a3bfe164251c462a039eccca0f4c0844562",
+    "island/world.js": "fd2bb21423e2b0732d2a9f739b9216af19d92da2c5393d683aa0bab0388c791e",
     "island/stone.js": "9dc4546958e1c572a8a9243fb61c4a22a1f88d303d95961519cc0c7caabcc7b6",
     "island/reference-shading.js": "f4c7f6fcf76a3e7bd40a7218e87a9db14dea87bde306f0c187760eb0fb001a75",
     "island/composition.js": "f35b920c1dc39f5096ca1ad48e11789b080b7c371df3af048d527b8b536c5e01",
