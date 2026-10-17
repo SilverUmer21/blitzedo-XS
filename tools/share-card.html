@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Share card</title>
+<!-- The link preview (assets/share-card.jpg, 1200 x 630): a title screen. Open with the dev server and screenshot the
+     1200 x 630 viewport, e.g. playwright page.screenshot({clip: {x: 0, y: 0, width: 1200, height: 630}}), saved as JPEG (quality 88). -->
+<style>
+  @font-face { font-family: "Inter Tight"; src: url("../assets/fonts/inter-tight-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; }
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: #090A08; color: #FBF5EB; font-family: "Inter Tight", sans-serif; }
+  .card { position: relative; width: 1200px; height: 630px; }
+  /* faint stone blocks behind everything, the transition's pixels at rest */
+  .blocks { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(20, 60px); grid-auto-rows: 60px; opacity: .55; }
+  .blocks i { background: #10110f; }
+  .blocks i:nth-child(7n+3) { background: #141513; }
+  .blocks i:nth-child(11n+5) { background: #171816; }
+  .blocks i:nth-child(53n+17) { background: #3a0907; }
+  .glow { position: absolute; right: 120px; top: 120px; width: 520px; height: 520px; background: radial-gradient(closest-side, rgba(174, 18, 18, .28), transparent); }
+  .island { position: absolute; right: 70px; top: -18px; height: 690px; }
+  .copy { position: absolute; left: 72px; top: 92px; display: grid; gap: 26px; width: 560px; }
+  .wordmark { width: 430px; height: auto; }
+  .tag { margin: 0; font-size: 98px; font-weight: 700; letter-spacing: -.045em; line-height: .86; }
+  .start { position: absolute; left: 72px; bottom: 74px; display: flex; align-items: center; gap: 18px; font-size: 25px; font-weight: 700; letter-spacing: .28em; text-transform: uppercase; }
+  .start::before { content: ""; width: 0; height: 0; border-left: 16px solid #E8332A; border-top: 11px solid transparent; border-bottom: 11px solid transparent; }
+  .chip { position: absolute; left: 352px; bottom: 30px; width: 144px; height: 144px; background: url("../assets/chip-sprites.png") -720px 0 / 1584px 144px no-repeat; image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="blocks" id="blocks"></div>
+  <div class="glow"></div>
+  <img class="island" src="../island/assets/sculpture-fallback-v13.webp" alt="">
+  <div class="copy">
+    <img class="wordmark" src="../assets/wordmark.svg" alt="blitzedo">
+    <p class="tag">Play<br>beyond</p>
+  </div>
+  <div class="start">Press start</div>
+  <i class="chip"></i>
+</div>
+<script>
+  document.getElementById('blocks').innerHTML = new Array(20 * 11 + 1).join('<i></i>');
+  document.fonts.ready.then(() => { window.__ready = true; });
+</script>
+</body>
+</html>

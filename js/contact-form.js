@@ -11,6 +11,13 @@
   var status = document.getElementById('form-status');
   var button = form.querySelector('[type="submit"]');
 
+  // ?topic=Our%20games (the Arcade's "get word" link) picks that topic in advance.
+  var asked = new URLSearchParams(location.search).get('topic');
+  if (asked) {
+    var radios = form.querySelectorAll('[name="topic"]');
+    for (var r = 0; r < radios.length; r++) if (radios[r].value === asked) radios[r].checked = true;
+  }
+
   var checks = [
     {el: form.elements.name, error: 'cf-name-error', ok: function (v) { return v.trim().length > 0; }},
     {el: form.elements.email, error: 'cf-email-error', ok: function (v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()); }},

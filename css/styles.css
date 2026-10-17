@@ -354,7 +354,7 @@ a { color: inherit; text-decoration: none; }
   .site-nav a.site-nav__contact::after { display: none; }
   .site-nav__contact .icon { width: 0.42em; height: 0.42em; }
   html.menu-open { overflow: hidden; }
-  /* the menu's foot: the tagline and the explorer waving (frames 8-11 of the explorer sheet) */
+  /* the menu's foot: the tagline and Chip waving (frames 5-6 of assets/chip-sprites.png, 48 px cells at 2x) */
   .site-nav__foot {
     display: flex;
     align-items: flex-end;
@@ -369,15 +369,15 @@ a { color: inherit; text-decoration: none; }
   }
   .site-nav.is-open .site-nav__foot { opacity: 1; transition-delay: 0.36s; }
   .site-nav__explorer {
-    width: 84px;
-    aspect-ratio: 322 / 388;
-    background: 61.538% 0 / 1400% 100% no-repeat;
+    width: 96px;
+    height: 96px;
+    background: -480px 0 / 1056px 96px no-repeat;
     image-rendering: pixelated;
   }
   /* the sprite downloads only when the menu opens, not on every page view */
-  .site-nav.is-open .site-nav__explorer { background-image: url("../assets/explorer.png"); }
-  .site-nav.is-open .site-nav__explorer { animation: menu-wave 0.56s steps(4) infinite; }
-  @keyframes menu-wave { from { background-position-x: 61.538%; } to { background-position-x: 92.308%; } }
+  .site-nav.is-open .site-nav__explorer { background-image: url("../assets/chip-sprites.png"); }
+  .site-nav.is-open .site-nav__explorer { animation: menu-wave 0.5s steps(1, end) infinite; }
+  @keyframes menu-wave { 50% { background-position-x: -576px; } }
 
   /* mobile: headline, then the sculpture lifted up, then the action at the bottom of the first screen */
   .hero {
@@ -589,3 +589,99 @@ a { color: inherit; text-decoration: none; }
     radial-gradient(46% 30% at 50% 72%, rgba(120, 112, 104, 0.15), transparent 70%),
     radial-gradient(22% 16% at 60% 52%, rgba(174, 18, 18, 0.14), transparent 70%);
 }
+
+/* ---------- stage transitions (js/transition.js) ---------- */
+/* held up by the inline script in each page's head until the transition script draws its blocks over the new page */
+html.blit-in::after { content: ""; position: fixed; inset: 0; z-index: 1000; background: #1b1c1a; }
+.blit { position: fixed; inset: 0; z-index: 1000; overflow: hidden; cursor: progress; }
+.blit__blocks { position: absolute; left: 0; top: 0; image-rendering: pixelated; }
+.blit__card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  gap: 12px;
+  width: min(340px, calc(100vw - 2 * var(--gutter)));
+  transform: translate(-50%, -50%);
+  visibility: hidden;
+}
+.blit__card.is-shown { visibility: visible; }
+.blit__stage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ivory-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+.blit__stage::before { content: ""; width: 8px; height: 8px; background: #E8332A; }
+.blit__name { color: var(--ivory); font-size: clamp(36px, 9vw, 56px); font-weight: 700; letter-spacing: -0.035em; line-height: 0.95; }
+.blit__track { position: relative; height: 96px; margin-top: 6px; }
+/* Chip's hop cycle: frames 0-3 of assets/chip-sprites.png (48 px cells, drawn at 2x) */
+.blit__chip {
+  position: absolute;
+  bottom: -6px;
+  left: calc(var(--at, 0) * (100% - 96px));
+  width: 96px;
+  height: 96px;
+  background: url("../assets/chip-sprites.png") no-repeat;
+  background-size: 1056px 96px;
+  background-position: calc(var(--frame, 0) * -96px) 0;
+  image-rendering: pixelated;
+}
+.blit__bar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+.blit__bar i { height: 10px; background: rgba(244, 240, 230, 0.12); }
+.blit__bar i.is-on { background: var(--ivory); }
+
+/* ---------- Games: the level select ---------- */
+.kicker { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--ivory-muted); font-size: 13px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; }
+.kicker__dot { width: 8px; height: 8px; background: #E8332A; animation: kicker-blink 1.2s steps(1, end) infinite; }
+@keyframes kicker-blink { 50% { opacity: 0.2; } }
+.stages { display: grid; gap: clamp(40px, 5vw, 80px); padding: clamp(32px, 4.5vw, 72px) var(--gutter) clamp(48px, 6vw, 96px); }
+.stages__copy { display: grid; gap: clamp(16px, 1.8vw, 28px); justify-items: start; }
+.stages__lede { margin: 0; font-size: clamp(19px, 1.7vw, 28px); max-width: 32ch; }
+.stage-map { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(14px, 2vw, 32px); margin: 0; padding: 0; list-style: none; counter-reset: stage; }
+/* each stage is a stone block: red-capped once cleared, like the island's lit stones */
+.stage-tile { position: relative; }
+.stage-tile > a, .stage-tile.is-locked {
+  display: grid;
+  gap: 6px;
+  align-content: end;
+  min-height: clamp(150px, 15vw, 230px);
+  padding: clamp(16px, 1.6vw, 24px);
+  background: var(--charcoal);
+  border-top: 8px solid #3a3b37;
+  box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.35);
+  transition: transform 0.16s steps(2, end);
+}
+.stage-tile.is-cleared > a { border-top-color: #E8332A; }
+.stage-tile > a:hover, .stage-tile > a:focus-visible { transform: translateY(-6px); }
+.stage-tile__no { font-size: clamp(40px, 4.4vw, 72px); font-weight: 700; letter-spacing: -0.04em; line-height: 0.9; color: var(--ivory); }
+.stage-tile__name { font-size: clamp(17px, 1.35vw, 22px); font-weight: 600; }
+.stage-tile__state { font-size: 12px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ivory-muted); }
+.stage-tile.is-cleared .stage-tile__state { color: #FF7A52; }
+.stage-tile.is-locked { background: #141513; border-top-color: #262724; }
+.stage-tile.is-locked .stage-tile__no, .stage-tile.is-locked .stage-tile__name { color: rgba(244, 240, 230, 0.32); }
+/* a pixel padlock (4 px pixels, drawn with box-shadow) */
+.stage-tile__lock { position: absolute; top: clamp(18px, 1.8vw, 26px); right: clamp(30px, 2.6vw, 40px); width: 4px; height: 4px; color: #E8332A; box-shadow: 8px 0px currentColor, 12px 0px currentColor, 16px 0px currentColor, 4px 4px currentColor, 20px 4px currentColor, 4px 8px currentColor, 20px 8px currentColor, 0px 12px currentColor, 4px 12px currentColor, 8px 12px currentColor, 12px 12px currentColor, 16px 12px currentColor, 20px 12px currentColor, 24px 12px currentColor, 0px 16px currentColor, 4px 16px currentColor, 8px 16px currentColor, 16px 16px currentColor, 20px 16px currentColor, 24px 16px currentColor, 0px 20px currentColor, 4px 20px currentColor, 8px 20px currentColor, 16px 20px currentColor, 20px 20px currentColor, 24px 20px currentColor, 0px 24px currentColor, 4px 24px currentColor, 8px 24px currentColor, 12px 24px currentColor, 16px 24px currentColor, 20px 24px currentColor, 24px 24px currentColor; animation: lock-rattle 3.2s steps(1, end) infinite; }
+@keyframes lock-rattle { 0%, 88%, 100% { transform: none; } 90% { transform: translateX(-3px); } 93% { transform: translateX(3px); } 96% { transform: translateX(-2px); } }
+@media (max-width: 760px) {
+  .stage-map { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---------- 404: game over ---------- */
+.over { display: grid; justify-items: center; align-content: center; gap: 18px; min-height: calc(100svh - var(--header-h)); padding: 32px var(--gutter) 64px; text-align: center; }
+/* Chip, knocked over: the 'oof' frame of assets/chip-sprites.png at 3x */
+.over__chip { width: 144px; height: 144px; background: url("../assets/chip-sprites.png") -1152px 0 / 1584px 144px no-repeat; image-rendering: pixelated; animation: over-wobble 1.6s steps(1, end) infinite; }
+@keyframes over-wobble { 50% { transform: rotate(-4deg) translateY(2px); } }
+.over__title { margin: 0; font-size: clamp(56px, 11vw, 160px); font-weight: 800; letter-spacing: -0.045em; line-height: 0.88; text-transform: uppercase; }
+.over__lede { margin: 0; max-width: 34ch; font-size: clamp(18px, 1.5vw, 24px); color: var(--ivory-muted); }
+.over__continue { margin: 8px 0 0; font-size: clamp(20px, 1.8vw, 28px); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.over__count { display: inline-block; min-width: 1.2ch; color: #E8332A; animation: over-blink 1s steps(1, end) infinite; }
+.over__continue.is-stopped .over__count { animation: none; }
+@keyframes over-blink { 60% { opacity: 0.25; } }
+.over__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px 32px; margin-top: 12px; }
+.over .btn { order: 0; margin: 0 !important; min-width: clamp(220px, 20vw, 320px); font-size: clamp(19px, 1.6vw, 26px); }
+@media (max-width: 760px) { .over__actions { flex-direction: column; width: 100%; } }

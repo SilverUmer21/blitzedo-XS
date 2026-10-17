@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chip sprites</title>
+<style>html, body { margin: 0; background: #2b2b2b; } canvas { display: block; image-rendering: pixelated; width: auto; }</style>
+</head>
+<body>
+<canvas id="sheet"></canvas>
+<script type="module">
+// Renders the real Chip (island/chip.js) into small pixel frames for the 2D parts of the site: the page-transition runner,
+// the favicons and the 404 page. ?cell=48 sets the frame size. Sets window.__sheet (PNG data URL) and window.__frames.
+// Open it with the dev server (node serve.mjs). assets/chip-sprites.png is the cell=48 sheet; the icons in assets/icons
+// are frames cut from the 16, 32, 48 and 64 sheets ('face'/'faceSleep' for the tab, 'idle' on a dark tile for apps).
+import * as THREE from '../island/assets/vendor/three.module.js';
+import { createChip, poseChip, CHIP_POSES, CHIP_FACES } from '../island/chip.js';
+import { loadStoneTexture } from '../island/stone.js?v=embers-13';
+
+const q = new URLSearchParams(location.search);
+const CELL = +q.get('cell') || 48;
+const SUPER = 4;                                            // rendered larger, then reduced to whole pixels
+const stoneMap = await loadStoneTexture();
+const chip = createChip(stoneMap);
+chip.shadow.visible = false;
+const scene = new THREE.Scene();
+scene.add(chip.group);
+const renderer = new THREE.WebGLRenderer({antialias: false, alpha: true, preserveDrawingBuffer: true});
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.setClearColor(0x000000, 0);
+renderer.setPixelRatio(1);
+renderer.setSize(CELL * SUPER, CELL * SUPER, false);
+
+// Frames: [name, facing (radians, 0 = toward the viewer), pose]
+const FRAMES = [
+  ['run0', .9, {...CHIP_POSES.ready, lean: .05, look: [.6, 0]}],
+  ['run1', .9, {...CHIP_POSES.hop, lift: .14, lean: 0, look: [.6, .3]}],
+  ['run2', .9, {...CHIP_POSES.hop, lift: .2, lean: 0, squash: 1.06, look: [.6, .3]}],
+  ['run3', .9, {...CHIP_POSES.land, lean: 0, dust: false, blink: .4}],
+  ['idle', .35, CHIP_POSES.idle],
+  ['wave0', .2, {...CHIP_FACES.joy, arms: [.15, 2.45]}],
+  ['wave1', .2, {...CHIP_FACES.joy, arms: [.15, 3.05]}],
+  ['sleep', .35, {...CHIP_FACES.sleepy, blink: 1, legs: .5, squash: .9}],
+  ['oof', .35, {...CHIP_FACES.oof, squash: .86, legs: .8}],
+  ['face', .25, {look: [0, .1], brows: {raise: .012}, mouth: 'small'}],
+  ['faceSleep', .25, {blink: 1, tilt: .1, mouth: 'small'}]
+];
+const sheet = document.getElementById('sheet');
+sheet.width = CELL * FRAMES.length; sheet.height = CELL;
+const ctx = sheet.getContext('2d');
+const small = Object.assign(document.createElement('canvas'), {width: CELL, height: CELL});
+const sctx = small.getContext('2d', {willReadFrequently: true});
+
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, .1, 20);
+FRAMES.forEach(([name, facing, pose], i) => {
+  poseChip(chip, pose);
+  chip.group.rotation.y = facing;
+  // The face frames frame the head only; the others the whole body, standing on the frame's bottom row.
+  const head = name.startsWith('face');
+  const span = head ? .74 : 1.0, centreY = head ? .55 : .43;
+  camera.left = -span / 2; camera.right = span / 2; camera.top = span / 2; camera.bottom = -span / 2;
+  camera.position.set(0, centreY + 2.2, 6); camera.lookAt(0, centreY, 0);
+  camera.updateProjectionMatrix();
+  renderer.render(scene, camera);
+  // Reduce SUPER x SUPER blocks to one pixel: the most common opaque colour wins, so edges stay hard (no blur).
+  const big = Object.assign(document.createElement('canvas'), {width: CELL * SUPER, height: CELL * SUPER}).getContext('2d', {willReadFrequently: true});
+  big.drawImage(renderer.domElement, 0, 0);
+  const src = big.getImageData(0, 0, CELL * SUPER, CELL * SUPER).data, out = sctx.createImageData(CELL, CELL);
+  for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) {
+    const count = new Map(); let opaque = 0;
+    for (let dy = 0; dy < SUPER; dy++) for (let dx = 0; dx < SUPER; dx++) {
+      const o = ((y * SUPER + dy) * CELL * SUPER + x * SUPER + dx) * 4;
+      if (src[o + 3] < 128) continue;
+      opaque++;
+      const key = (src[o] >> 3) << 10 | (src[o + 1] >> 3) << 5 | src[o + 2] >> 3;
+      const c = count.get(key); if (c) c.n++; else count.set(key, {n: 1, o});
+    }
+    if (opaque * 2 < SUPER * SUPER) continue;
+    let best = null; for (const c of count.values()) if (!best || c.n > best.n) best = c;
+    const t = (y * CELL + x) * 4;
+    out.data[t] = src[best.o]; out.data[t + 1] = src[best.o + 1]; out.data[t + 2] = src[best.o + 2]; out.data[t + 3] = 255;
+  }
+  sctx.putImageData(out, 0, 0);
+  ctx.drawImage(small, i * CELL, 0);
+});
+sheet.style.height = CELL * 4 + 'px';
+window.__frames = FRAMES.map(f => f[0]);
+window.__sheet = sheet.toDataURL('image/png');
+</script>
+</body>
+</html>

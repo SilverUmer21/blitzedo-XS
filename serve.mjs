@@ -19,7 +19,11 @@ const server=createServer(async(req,res)=>{
     res.writeHead(200,{'Content-Type':mime[extname(path).toLowerCase()]||'application/octet-stream','Content-Length':info.size,'Cache-Control':'no-store'});
     if(req.method==='HEAD'){res.end();return;}
     const stream=createReadStream(path);stream.on('error',()=>res.destroy());stream.pipe(res);
-  }catch(error){res.writeHead(error.code==='ENOENT'?404:400);res.end(error.code==='ENOENT'?'Not found':'Bad request');}
+  }catch(error){
+    // Missing pages get the site's 404.html, as Vercel serves it.
+    if(error.code==='ENOENT'){res.writeHead(404,{'Content-Type':mime['.html'],'Cache-Control':'no-store'});createReadStream(join(root,'404.html')).on('error',()=>res.end('Not found')).pipe(res);return;}
+    res.writeHead(400);res.end('Bad request');
+  }
 });
 server.on('error',error=>{console.error(error.message);process.exitCode=1;});
 server.listen(port,'127.0.0.1',()=>console.log(`blitzedo: http://localhost:${port}`));
