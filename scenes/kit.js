@@ -1,6 +1,7 @@
 import * as THREE from '../island/assets/vendor/three.module.js';
 import { fractureGeometry } from '../island/stone.js?v=embers-13';
 import { sceneMaterial, prepareFaces } from './shading.js';
+import { VIEW_DIR } from './stage.js';
 
 // A builder for the site's stone dioramas, the way island/world.js builds the island: every block is a chipped, bevelled
 // polygon extruded front to back; big exposed faces get shallow angular relief (fractureGeometry); each face samples a
@@ -17,37 +18,46 @@ import { sceneMaterial, prepareFaces } from './shading.js';
 // (ivory paper, ink) that still takes the scene's lighting.
 
 export function woodAtlas() {
-  // 4 x 4 tiles of pixel planks (64 px each, scaled 4x with nearest filtering): grain streaks, dark joints, a few knots.
+  // One repeating tile of pixel wood grain (64 px, scaled 4x with nearest filtering), laid on in world units (kit.add):
+  // the grain runs along each timber's length at the same scale everywhere, and mipmaps keep it from shimmering at a
+  // distance or while the scene floats.
   const S = 64, c = document.createElement('canvas');
-  c.width = c.height = S * 4;
+  c.width = c.height = S;
   const g = c.getContext('2d');
   let s = 917;
   const r = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
-  for (let t = 0; t < 16; t++) {
-    const ox = (t % 4) * S, oy = Math.floor(t / 4) * S;
-    const plank = 10 + Math.floor(r() * 6);
-    for (let y = 0; y < S; y++) {
-      const row = Math.floor(y / plank), joint = y % plank === 0;
-      const base = 128 + (row % 3) * 9 + Math.floor(r() * 6);
-      for (let x = 0; x < S; x++) {
-        const streak = Math.sin((x + row * 17) * .21 + Math.sin(y * .7 + row) * 1.6) > .55 ? -16 : 0;
-        const fleck = r() < .05 ? 18 : r() < .05 ? -22 : 0;
-        const v = joint ? 52 : base + streak + fleck;
-        g.fillStyle = `rgb(${v},${v},${v})`;
-        g.fillRect(ox + x, oy + y, 1, 1);
-      }
-      if (!joint && r() < .04) { const kx = Math.floor(r() * (S - 4)); g.fillStyle = 'rgb(70,70,70)'; g.fillRect(ox + kx, oy + y, 3, 2); }
-    }
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const wave = Math.sin(x * .1 + Math.sin(y * .45) * 1.3) * .5 + Math.sin(y * .9 + x * .02) * .5;
+    let v = 132 + wave * 14 + (r() - .5) * 8;
+    if (Math.abs(Math.sin(y * .52 + Math.sin(x * .08) * .9)) > .93) v -= 22;    // darker grain lines, long and soft
+    g.fillStyle = `rgb(${v | 0},${v | 0},${v | 0})`;
+    g.fillRect(x, y, 1, 1);
+  }
+  for (let k = 0; k < 3; k++) {                                                   // a few knots
+    const kx = Math.floor(r() * (S - 6)), ky = Math.floor(r() * (S - 4));
+    g.fillStyle = 'rgb(92,92,92)'; g.fillRect(kx, ky, 5, 3);
+    g.fillStyle = 'rgb(74,74,74)'; g.fillRect(kx + 1, ky + 1, 3, 1);
   }
   const big = document.createElement('canvas');
-  big.width = big.height = S * 16;
+  big.width = big.height = S * 4;
   const bg = big.getContext('2d');
   bg.imageSmoothingEnabled = false;
   bg.drawImage(c, 0, 0, big.width, big.height);
   const tex = new THREE.CanvasTexture(big);
-  tex.magFilter = tex.minFilter = THREE.NearestFilter;
-  tex.generateMipmaps = false;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
   tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// Pixel textures stay crisp up close (nearest) but get mipmaps for distance, so fine pixel detail never shimmers.
+export function mipmapped(tex) {
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  tex.needsUpdate = true;
   return tex;
 }
 
@@ -72,9 +82,7 @@ export function brickAtlas() {
       g.fillRect(ox + u * cell, oy + w * cell, cell, cell);
     }
   }
-  const tex = new THREE.CanvasTexture(c);
-  tex.magFilter = tex.minFilter = THREE.NearestFilter;
-  tex.generateMipmaps = false;
+  const tex = mipmapped(new THREE.CanvasTexture(c));
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
@@ -102,9 +110,7 @@ export function crimsonAtlas() {
     g.fillStyle = 'rgb(46,6,5)';                                 // the gap
     g.fillRect(ox, oy + S - cell, S, cell); g.fillRect(ox + S - cell, oy, cell, S);
   }
-  const tex = new THREE.CanvasTexture(c);
-  tex.magFilter = tex.minFilter = THREE.NearestFilter;
-  tex.generateMipmaps = false;
+  const tex = mipmapped(new THREE.CanvasTexture(c));
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
@@ -116,7 +122,7 @@ function whiteTexture() {
   return t;
 }
 
-export function createKit({maps, lights, seed = 1, keyLight = 1}) {
+export function createKit({maps, lights, seed = 1, keyLight = 1, cull: cullAll = true}) {
   let state = seed >>> 0;
   const rand = () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state / 4294967296; };
   const white = whiteTexture();
@@ -133,48 +139,79 @@ export function createKit({maps, lights, seed = 1, keyLight = 1}) {
   const swatches = Array.from({length: 7}, (_, i) => new THREE.Color(0x82817d).multiplyScalar(.85 + i * .035));
   const woodSwatches = [0x8a5a3a, 0x7d5034, 0x946443, 0x6f4730].map(c => new THREE.Color(c));
 
-  function push(material, p, n, uv, col) {
-    if (!batches.has(material)) batches.set(material, {p: [], n: [], uv: [], c: []});
-    const b = batches.get(material);
-    b.p.push(...p); b.n.push(...n); b.uv.push(...uv); b.c.push(...col);
+  // Faces go straight into growable typed buffers per material: no per-triangle objects, so hundreds of cubes build fast.
+  function batch(material) {
+    let b = batches.get(material);
+    if (!b) { b = {p: new Float32Array(9 * 512), n: new Float32Array(9 * 512), uv: new Float32Array(6 * 512), c: new Float32Array(9 * 512), tris: 0}; batches.set(material, b); }
+    if ((b.tris + 1) * 9 > b.p.length) for (const k of ['p', 'n', 'uv', 'c']) { const g = new Float32Array(b[k].length * 2); g.set(b[k]); b[k] = g; }
+    return b;
   }
 
-  // Sort a block's faces into materials and atlas tiles (as world.js add()).
-  function add(geometry, {mat = 'stone', color = null, tint = 1, size = 1}) {
+  // Sort a block's faces into materials and atlas tiles (as world.js add()). Faces turned away from the camera (which only
+  // ever sees the scene from VIEW_DIR, give or take the small pointer lean) are dropped: about half of every block.
+  const [VX, VY, VZ] = VIEW_DIR.toArray();
+  function add(geometry, opts) {
     if (geometry.index) { const s = geometry; geometry = s.toNonIndexed(); s.dispose(); }
     const a = geometry.attributes;
-    const stoneTile = Math.floor(rand() * 16), redTile = Math.floor(rand() * 8), woodTile = Math.floor(rand() * 16);
+    addRaw(a.position.array, a.normal.array, a.uv.array, opts);
+    geometry.dispose();
+  }
+  function addRaw(P, N, UV, {mat = 'stone', color = null, tint = 1, size = 1, cull = cullAll}) {
+    const stoneTile = Math.floor(rand() * 16), redTile = Math.floor(rand() * 8);
     const shade = color ? new THREE.Color(color) : mat === 'wood' ? woodSwatches[Math.floor(rand() * 4)] : swatches[Math.floor(rand() * swatches.length)];
     const density = THREE.MathUtils.clamp(size / .75, .2, 1);   // small stones take a smaller patch, so the grain keeps its scale
-    for (let i = 0; i < a.position.count; i += 3) {
-      const ny = (a.normal.getY(i) + a.normal.getY(i + 1) + a.normal.getY(i + 2)) / 3;
+    // wood: the grain runs along the block's longest side, in world units
+    let long = 0;
+    if (mat === 'wood') {
+      const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+      for (let i = 0; i < P.length; i += 3) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], P[i + k]); mx[k] = Math.max(mx[k], P[i + k]); }
+      const ext = [0, 1, 2].map(k => mx[k] - mn[k]);
+      long = ext.indexOf(Math.max(...ext));
+    }
+    const woodShift = rand() * 10;
+    const base = [shade.r, shade.g, shade.b];
+    for (let i = 0; i < P.length / 3; i += 3) {
+      const o = i * 3;
+      const nx = (N[o] + N[o + 3] + N[o + 6]) / 3, ny = (N[o + 1] + N[o + 4] + N[o + 7]) / 3, nz = (N[o + 2] + N[o + 5] + N[o + 8]) / 3;
+      if (cull && nx * VX + ny * VY + nz * VZ < -.3) continue;
       const top = ny > .58;
       let kind = mat;
       if (mat === 'red') kind = top ? 'red' : 'stone';
-      const tile = kind === 'red' || kind === 'glow' || kind === 'crimson' ? redTile : kind === 'wood' ? woodTile : stoneTile;
-      const span = kind === 'glow' || kind === 'crimson' ? .9375 : (kind === 'red' ? .9375 : kind === 'wood' ? .9 : .62) * (kind === 'paint' ? 1 : density);
-      let col;
-      if (kind === 'red') col = new THREE.Color(.94, .94, .94).multiplyScalar(tint);
-      else if (kind === 'crimson') {                             // tops lit, fronts mid, right faces in shade: each cube reads as a cube
-        const nx = (a.normal.getX(i) + a.normal.getX(i + 1) + a.normal.getX(i + 2)) / 3;
-        col = new THREE.Color(1, 1, 1).multiplyScalar(tint * (top ? 1.18 : ny < -.5 ? .35 : nx > .5 ? .62 : nx < -.5 ? .55 : .86));
-      }
-      else if (kind === 'glow') col = new THREE.Color(.94, .94, .94).multiplyScalar(tint * (top ? 1 : ny < -.5 ? .35 : .62));
-      else if (kind === 'stone' && mat === 'red') col = swatches[Math.floor(rand() * swatches.length)];
-      else col = shade.clone().multiplyScalar(kind === 'paint' ? 1 : tint);
-      const uv = [];
+      const tile = kind === 'red' || kind === 'glow' || kind === 'crimson' ? redTile : stoneTile;
+      const span = kind === 'glow' || kind === 'crimson' ? .9375 : (kind === 'red' ? .9375 : .62) * (kind === 'paint' ? 1 : density);
+      let cr, cg, cb;
+      if (kind === 'red') { cr = cg = cb = .94 * tint; }
+      else if (kind === 'crimson') { cr = cg = cb = tint * (top ? 1.18 : ny < -.5 ? .35 : nx > .5 ? .62 : nx < -.5 ? .55 : .86); }
+      else if (kind === 'glow') { cr = cg = cb = .94 * tint * (top ? 1 : ny < -.5 ? .35 : .62); }
+      else if (kind === 'stone' && mat === 'red') { const w = swatches[Math.floor(rand() * swatches.length)]; cr = w.r; cg = w.g; cb = w.b; }
+      else { const k = kind === 'paint' ? 1 : tint; cr = base[0] * k; cg = base[1] * k; cb = base[2] * k; }
+      const b = batch(materials[kind]), t9 = b.tris * 9, t6 = b.tris * 6;
+      for (let j = 0; j < 9; j++) { b.p[t9 + j] = P[o + j]; b.n[t9 + j] = N[o + j]; }
       for (let j = 0; j < 3; j++) {
-        const u = a.uv.getX(i + j), v = a.uv.getY(i + j);
-        uv.push(((tile % 4) + (u - Math.floor(u)) * span + .03125) / 4, 1 - (Math.floor(tile / 4) + (v - Math.floor(v)) * span + .03125) / 4);
+        b.c[t9 + j * 3] = cr; b.c[t9 + j * 3 + 1] = cg; b.c[t9 + j * 3 + 2] = cb;
+        let u, v;
+        if (kind === 'wood') {
+          // the face's two in-plane axes; u follows the long axis when it lies in this face
+          const ax = Math.abs(nx) > .7 ? [2, 1] : Math.abs(ny) > .7 ? [0, 2] : [0, 1];
+          const [ua, va] = ax.includes(long) ? [long, ax.find(k => k !== long)] : ax;
+          u = P[o + j * 3 + ua] * .9 + woodShift; v = P[o + j * 3 + va] * .9 + woodShift * .37;
+        } else {
+          const u0 = UV[(i + j) * 2], v0 = UV[(i + j) * 2 + 1];
+          u = ((tile % 4) + (u0 - Math.floor(u0)) * span + .03125) / 4;
+          v = 1 - (Math.floor(tile / 4) + (v0 - Math.floor(v0)) * span + .03125) / 4;
+        }
+        b.uv[t6 + j * 2] = u; b.uv[t6 + j * 2 + 1] = v;
       }
-      push(materials[kind], Array.from(a.position.array.slice(i * 3, i * 3 + 9)), Array.from(a.normal.array.slice(i * 3, i * 3 + 9)), uv,
-        [col.r, col.g, col.b, col.r, col.g, col.b, col.r, col.g, col.b]);
+      b.tris++;
     }
-    geometry.dispose();
   }
 
   // A polygon in the XY plane extruded along Z from z to z + depth, its long edges notched into broken stone.
   function polygon(points, z, depth, opts = {}) {
+    const {g, size} = cut(points, z, depth, opts);
+    add(g, {...opts, size: Math.max(size.x, size.y, size.z)});
+  }
+  function cut(points, z, depth, opts = {}) {
     const {bevel = .006, notch = .46, relief = true} = opts;
     const chipped = [];
     for (let i = 0; i < points.length; i++) {
@@ -189,7 +226,7 @@ export function createKit({maps, lights, seed = 1, keyLight = 1}) {
     shape.moveTo(...chipped[0]);
     for (const p of chipped.slice(1)) shape.lineTo(...p);
     shape.closePath();
-    let g = new THREE.ExtrudeGeometry(shape, {depth: Math.max(.001, depth - 2 * bevel), bevelEnabled: true, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 1, curveSegments: 1, steps: 1});
+    let g = new THREE.ExtrudeGeometry(shape, {depth: Math.max(.001, depth - 2 * bevel), bevelEnabled: bevel > 0, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 1, curveSegments: 1, steps: 1});
     g.translate(0, 0, z + bevel);
     const uv = g.attributes.uv, pos = g.attributes.position, norm = g.attributes.normal;
     const box = new THREE.Box3().setFromBufferAttribute(pos), size = box.getSize(new THREE.Vector3());
@@ -200,12 +237,29 @@ export function createKit({maps, lights, seed = 1, keyLight = 1}) {
     }
     if (relief && depth > .5 && size.y > .4 && opts.mat !== 'paint') g = fractureGeometry(g, chipped, Math.floor(rand() * 10000));
     if (opts.matrix) g.applyMatrix4(opts.matrix);               // a tilted part (an envelope), placed after it is cut
-    add(g, {...opts, size: Math.max(size.x, size.y, size.z)});
+    if (g.index) { const s = g; g = s.toNonIndexed(); s.dispose(); }
+    return {g, size};
+  }
+
+  // Small plain blocks (no relief, no notches: the cubes of the contact and studio scenes, hundreds of them) are copied from
+  // a few pre-cut unit templates, scaled and moved, instead of being cut one by one: the same look, many times faster.
+  const templates = Array.from({length: 8}, () => {
+    const c = .09, a = c * (.5 + rand()), b = c * (.5 + rand());
+    const pts = [[-.5 + a, -.5], [.5 - b, -.5], [.5, -.5 + b], [.5, .5 - a], [.5 - a, .5], [-.5 + b, .5], [-.5, .5 - b], [-.5, -.5 + a]];
+    const {g} = cut(pts, -.5, 1, {bevel: 0, notch: 0, relief: false});
+    return {p: g.attributes.position.array, n: g.attributes.normal.array, uv: g.attributes.uv.array};
+  });
+  function box(x, y, z, w, h, d, opts = {}) {
+    const t = templates[Math.floor(rand() * templates.length)];
+    const P = new Float32Array(t.p.length);
+    for (let i = 0; i < P.length; i += 3) { P[i] = x + t.p[i] * w; P[i + 1] = y + t.p[i + 1] * h; P[i + 2] = z + t.p[i + 2] * d; }
+    addRaw(P, t.n, t.uv, {...opts, size: Math.max(w, h, d)});
   }
 
   // A chipped block centred on (x, y, z): an octagon front outline (corners knocked off), extruded along Z.
   function slab(x, y, z, w, h, d, opts = {}) {
     const chip = opts.chip ?? .023;
+    if (opts.relief === false && opts.notch === 0 && !opts.matrix && chip > 0 && opts.mat !== 'paint') return box(x, y, z, w, h, d, opts);
     const a = chip * (.5 + rand()), b = chip * (.5 + rand());
     const pts = [[x - w / 2 + a, y - h / 2], [x + w / 2 - b, y - h / 2], [x + w / 2, y - h / 2 + b], [x + w / 2, y + h / 2 - a], [x + w / 2 - a, y + h / 2], [x - w / 2 + b, y + h / 2], [x - w / 2, y + h / 2 - b], [x - w / 2, y - h / 2 + a]];
     polygon(pts, z - d / 2, d, {bevel: Math.min(.006, w * .015, h * .015), ...opts});
@@ -245,10 +299,10 @@ export function createKit({maps, lights, seed = 1, keyLight = 1}) {
     const group = new THREE.Group();
     for (const [material, b] of batches) {
       const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(b.p, 3));
-      g.setAttribute('normal', new THREE.Float32BufferAttribute(b.n, 3));
-      g.setAttribute('uv', new THREE.Float32BufferAttribute(b.uv, 2));
-      g.setAttribute('color', new THREE.Float32BufferAttribute(b.c, 3));
+      g.setAttribute('position', new THREE.BufferAttribute(b.p.slice(0, b.tris * 9), 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(b.n.slice(0, b.tris * 9), 3));
+      g.setAttribute('uv', new THREE.BufferAttribute(b.uv.slice(0, b.tris * 6), 2));
+      g.setAttribute('color', new THREE.BufferAttribute(b.c.slice(0, b.tris * 9), 3));
       group.add(new THREE.Mesh(prepareFaces(g), material));
     }
     if (edges.length) {
@@ -266,5 +320,5 @@ export function createKit({maps, lights, seed = 1, keyLight = 1}) {
     return group;
   }
 
-  return {rand, slab, polygon, prism, wear, build, materials};
+  return {rand, slab, box, polygon, prism, wear, build, materials};
 }

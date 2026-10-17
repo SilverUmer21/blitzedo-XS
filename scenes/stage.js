@@ -55,8 +55,14 @@ export function runStage({container, canvas, scene: built, onFrame}) {
   }, {passive: true});
   container.addEventListener('pointerleave', () => pointer.set(0, 0));
 
+  // Phones draw at most 30 frames a second (the motion is slow, so it looks the same and saves battery); if the first
+  // frames are slow anyway, the resolution steps down, as on the home island.
+  const minGap = compact.matches ? 32 : 0;
+  let last = 0, measured = 0, slow = 0;
   function tick(now) {
     raf = requestAnimationFrame(tick);
+    if (now - last < minGap) return;
+    last = now;
     const dt = Math.min((now - previous) / 1000, .1);
     previous = now;
     if (document.hidden || !visible) return;
@@ -66,10 +72,29 @@ export function runStage({container, canvas, scene: built, onFrame}) {
     root.position.y = paused ? 0 : Math.sin(elapsed * Math.PI * 2 / 6.6) * .05;
     root.rotation.y = THREE.MathUtils.lerp(root.rotation.y, paused ? 0 : pointer.x * .08, .045);
     root.rotation.x = THREE.MathUtils.lerp(root.rotation.x, paused ? 0 : pointer.y * .03, .045);
+    const t0 = performance.now();
     render();
+    if (!paused && measured < 90) {
+      measured++;
+      if (performance.now() - t0 > 20) slow++;
+      if (measured === 90 && slow > 25) { pixelRatio = Math.max(.85, pixelRatio * .7); resize(); }
+    }
   }
   resize();
   container.classList.add('is-3d-ready');
   raf = requestAnimationFrame(tick);
   return {renderer, scene, camera, root, render, stop: () => cancelAnimationFrame(raf)};
+}
+
+// Start a scene only once the page has finished its first work (load, then an idle moment) and the scene is within a
+// screen of view, so the text and form are never held up by the 3D.
+export function whenReady(el) {
+  const near = new Promise(resolve => {
+    if (!('IntersectionObserver' in window)) return resolve();
+    const io = new IntersectionObserver(e => { if (e.some(x => x.isIntersecting)) { io.disconnect(); resolve(); } }, {rootMargin: '100% 0px'});
+    io.observe(el);
+  });
+  const loaded = document.readyState === 'complete' ? Promise.resolve() : new Promise(r => addEventListener('load', r, {once: true}));
+  const idle = () => new Promise(r => (window.requestIdleCallback || (f => setTimeout(f, 60)))(r, {timeout: 700}));
+  return Promise.all([near, loaded.then(idle)]);
 }

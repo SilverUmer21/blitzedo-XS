@@ -76,7 +76,7 @@ export function buildMailbox({maps, stoneMap}) {
   kit.slab(0, (box.y0 + yc) / 2 + .05, -R + c + .02, box.L - c * 2, box.hRect, .02, {...flat, color: liner});
 
   /* ---------- the envelope: ivory paper with a little thickness, the flap's fold, a red seal ---------- */
-  const envKit = createKit({maps, lights, seed: 77, keyLight: .9});
+  const envKit = createKit({maps, lights, seed: 77, keyLight: .9, cull: false});   // it turns when it is posted, so keep all its faces
   envKit.slab(0, 0, 0, .92, .035, .62, {...flat, color: 0xe7e0d2});
   envKit.slab(-.02, .02, 0, .86, .006, .56, {...flat, color: 0xe6dfd0});                 // the back sheet, a shade darker
   for (const s of [-1, 1]) {

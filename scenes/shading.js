@@ -84,14 +84,13 @@ export function sceneMaterial({map, lights, color = 0xffffff, emissive = 0x00000
 
 // Per-face centre and normal, as the island's prepareReferenceFaces(): the lighting is evaluated per face (flat, pixel-art).
 export function prepareFaces(geometry) {
-  const {position, normal} = geometry.attributes;
-  const centers = new Float32Array(position.count * 3), normals = new Float32Array(position.count * 3);
-  const c = new THREE.Vector3(), n = new THREE.Vector3(), v = new THREE.Vector3();
-  for (let i = 0; i < position.count; i += 3) {
-    c.set(0, 0, 0); n.set(0, 0, 0);
-    for (let j = 0; j < 3; j++) { c.add(v.fromBufferAttribute(position, i + j)); n.add(v.fromBufferAttribute(normal, i + j)); }
-    c.multiplyScalar(1 / 3); n.normalize();
-    for (let j = 0; j < 3; j++) { c.toArray(centers, (i + j) * 3); n.toArray(normals, (i + j) * 3); }
+  const P = geometry.attributes.position.array, N = geometry.attributes.normal.array;
+  const centers = new Float32Array(P.length), normals = new Float32Array(N.length);
+  for (let i = 0; i < P.length; i += 9) {
+    let nx = N[i] + N[i + 3] + N[i + 6], ny = N[i + 1] + N[i + 4] + N[i + 7], nz = N[i + 2] + N[i + 5] + N[i + 8];
+    const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+    const cx = (P[i] + P[i + 3] + P[i + 6]) / 3, cy = (P[i + 1] + P[i + 4] + P[i + 7]) / 3, cz = (P[i + 2] + P[i + 5] + P[i + 8]) / 3;
+    for (let j = 0; j < 9; j += 3) { centers[i + j] = cx; centers[i + j + 1] = cy; centers[i + j + 2] = cz; normals[i + j] = nx; normals[i + j + 1] = ny; normals[i + j + 2] = nz; }
   }
   geometry.setAttribute('faceCenter', new THREE.BufferAttribute(centers, 3));
   geometry.setAttribute('faceNormal', new THREE.BufferAttribute(normals, 3));

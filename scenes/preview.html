@@ -22,7 +22,9 @@ const stoneMap = await loadStoneTexture();
 const maps = {stone: stoneMap, red: stoneMap.userData.red, edge: stoneMap.userData.edge, wood: woodAtlas()};
 const mod = await import(`./${name}.js`);
 const build = mod[{mailbox: 'buildMailbox', workshop: 'buildWorkshop'}[name]];
+const tb = performance.now();
 const s = build({maps, stoneMap});
+const buildMs = performance.now() - tb;
 const scene = new THREE.Scene();
 scene.add(s.group);
 const canvas = document.getElementById('c');
@@ -36,6 +38,8 @@ const target = q.get('at') ? new THREE.Vector3(...q.get('at').split(',').map(Num
 const camera = sceneCamera(target, s.viewHeight / (+q.get('zoom') || 1), W / H);
 s.animate?.(+q.get('t') || 0, false);
 renderer.render(scene, camera);
+let tris = 0; scene.traverse(o => { if (o.isMesh) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
+window.__stats = {tris, buildMs: Math.round(buildMs), meshes: scene.children[0].children.length};
 window.__ready = true;
 </script>
 </body>
