@@ -7,6 +7,7 @@ Start with [DESIGN.md](DESIGN.md) for approved directions, responsive layouts, p
 - [Concept artwork](design/concepts/README.md)
 - [Actual game references](design/game-references/README.md)
 - [Iteration checklist](design/ITERATION.md)
+- [Ignition motion intro](design/INTRO.md) — studio ident, website cut, original sound, and MP4 export.
 
 Current phase: design documentation and reference artwork, plus the Home page. Other pages, animation, and mascot development follow static design approval.
 
