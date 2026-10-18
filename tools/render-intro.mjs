@@ -23,7 +23,7 @@ await mkdir(output,{recursive:true});
 const canvas=createCanvas(1920,1080),ctx=canvas.getContext('2d');
 const film=await createFilm(canvas,{loadImage:src=>loadImage(join(root,src)),createCanvas});
 if(stills){
-  const shots=[.35,.95,1.5,1.8,2.1,2.65,3.2,3.7,5.75,6.85,8.2,8.65,10.8];
+  const shots=[.35,.95,1.5,1.8,2.1,2.4,2.65,3.2,3.7,5.75,6.85,8.2,8.65,9.55,9.8,10.15,10.8,12.2];
   for(const t of shots){film.draw(t);await writeFile(join(output,'frame-'+t+'.png'),canvas.toBuffer('image/png'));}
   console.log('Rendered '+shots.length+' review frames.');process.exit(0);
 }

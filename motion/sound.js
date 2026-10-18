@@ -5,6 +5,7 @@ export function createScore(context, duration = 12.8) {
   const buffer = context.createBuffer(2, count, rate);
   const L = buffer.getChannelData(0), R = buffer.getChannelData(1), TAU = Math.PI * 2;
   const clamp = x => Math.max(0, Math.min(1, x));
+  const smooth = x => x * x * (3 - 2 * x);
   let seed = 98123;
   const noise = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 2147483648 - 1; };
   // Envelopes follow the film clock; oscillators follow real seconds so the short
@@ -138,7 +139,11 @@ export function createScore(context, duration = 12.8) {
   let peak = 0;
   for (let i = 0; i < count; i++) {
     const fade = clamp(i / (rate * .015)) * clamp((count - 1 - i) / (rate * .38));
-    L[i] = Math.tanh(L[i] * 1.42) * fade; R[i] = Math.tanh(R[i] * 1.42) * fade;
+    const t = i / rate * speed;
+    // Let the motion continue through a nearly silent breath. Restore the exact
+    // existing mix just before the 8.85-second logo impact, including its tail.
+    const breath = 1 - .90 * smooth(clamp((t - 7.48) / .42)) * (1 - smooth(clamp((t - 8.82) / .03)));
+    L[i] = Math.tanh(L[i] * 1.42) * fade * breath; R[i] = Math.tanh(R[i] * 1.42) * fade * breath;
     peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i]));
   }
   const gain = peak > 0 ? .89 / peak : 1;
