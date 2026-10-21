@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Light the gate · Blitzedo reel</title>
+<style>
+  @font-face { font-family: "Inter Tight"; src: url("../assets/fonts/inter-tight-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-style: normal; }
+  html, body { margin: 0; height: 100%; background: #090A08; color: #FBF5EB; font: 500 14px/1.3 "Inter Tight", system-ui, sans-serif; }
+  body { display: grid; grid-template-rows: 1fr auto; justify-items: center; align-items: center; gap: 12px; padding: 12px; box-sizing: border-box; }
+  canvas { height: 100%; max-height: calc(100vh - 80px); aspect-ratio: 9 / 16; width: auto; max-width: 100%; background: #090A08; image-rendering: auto; }
+  .bar { display: flex; gap: 12px; align-items: center; width: min(520px, 100%); }
+  .bar button { background: #AE1212; color: #FBF5EB; border: 0; border-radius: 4px; padding: 8px 16px; font: inherit; cursor: pointer; }
+  .bar input { flex: 1; accent-color: #E8332A; }
+  .bar span { min-width: 84px; text-align: right; color: rgba(244,240,230,.72); font-variant-numeric: tabular-nums; }
+  body.render .bar { display: none; }
+  #status { position: fixed; left: 12px; top: 10px; color: rgba(244,240,230,.72); }
+  body.render #status { display: none; }
+</style>
+</head>
+<body>
+<canvas id="out" width="1080" height="1920" aria-label="Blitzedo motion piece: Light the gate"></canvas>
+<div class="bar"><button id="play" type="button">Play</button><input id="seek" type="range" min="0" max="1" step="1" value="0" aria-label="Time"><span id="time">0.0 s</span></div>
+<div id="status">Loading the island…</div>
+<script type="module">
+// Live preview of the reel (needs the dev server: node serve.mjs, then /social/reel.html). render.mjs drives it frame by
+// frame for video; here it just plays. ?render hides the controls.
+import {createReel} from './reel.js';
+const q = new URLSearchParams(location.search);
+if (q.has('render')) document.body.classList.add('render');
+const status = document.querySelector('#status');
+const reel = await createReel({canvas: document.querySelector('#out'), onProgress: m => status.textContent = m});
+window.reel = reel;
+const total = Math.round(reel.duration * reel.fps);
+const seek = document.querySelector('#seek'), play = document.querySelector('#play'), time = document.querySelector('#time');
+seek.max = total - 1;
+let frame = 0, playing = false, last = 0;
+const show = n => { frame = n; reel.frame(n); seek.value = n; time.textContent = (n / reel.fps).toFixed(1) + ' / ' + reel.duration.toFixed(1) + ' s'; };
+function tick(now) {
+  if (!playing) return;
+  if (now - last >= 1000 / reel.fps - 2) { last = now; show((frame + 1) % total); }
+  requestAnimationFrame(tick);
+}
+play.addEventListener('click', () => { playing = !playing; play.textContent = playing ? 'Pause' : 'Play'; if (playing) requestAnimationFrame(tick); });
+seek.addEventListener('input', () => show(+seek.value));
+addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); play.click(); } });
+status.textContent = q.has('render') ? '' : 'Space plays and pauses. 1080 x 1920 at 30 fps.';
+show(+(q.get('f') || 0));
+window.reelReady = true;
+if (q.has('play')) play.click();
+</script>
+</body>
+</html>

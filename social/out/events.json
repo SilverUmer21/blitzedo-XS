@@ -1,0 +1,199 @@
+{
+ "fps": 30,
+ "duration": 21.533333333333335,
+ "timeline": {
+  "snake0": 0.5,
+  "k0": 4.441267320131833,
+  "snake1": 2.631267320131833,
+  "dash": [
+   2.7012673201318327,
+   2.7612673201318327,
+   2.821267320131833
+  ],
+  "park": 2.891267320131833,
+  "open0": 3.441267320131833,
+  "open1": 4.241267320131833,
+  "emberLeave": 3.541267320131833,
+  "lit": 11.773267320131026,
+  "toss": 10.957267320131116,
+  "zoom": 13.993267320130782,
+  "expand0": 14.893267320130782,
+  "expand1": 15.543267320130782,
+  "end0": 15.743267320130782
+ },
+ "events": [
+  {
+   "t": 5.133,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 7.433,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 7.7,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 8,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 8.267,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 8.567,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 8.833,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 9.133,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 9.4,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 9.7,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 9.967,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 10.267,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 10.467,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 10.633,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 10.767,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 10.933,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 11.267,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 11.933,
+   "type": "toss"
+  },
+  {
+   "t": 12.4,
+   "type": "lit"
+  },
+  {
+   "t": 13.267,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 13.6,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 13.967,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 14.3,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 14.667,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 15.9,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 17.367,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 17.767,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 18.133,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 18.467,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 18.833,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 19.167,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 19.533,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 19.867,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 20.233,
+   "type": "land",
+   "big": false
+  },
+  {
+   "t": 20.567,
+   "type": "land",
+   "big": false
+  }
+ ]
+}
