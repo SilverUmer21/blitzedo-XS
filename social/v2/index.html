@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1080">
+<title>One pixel. One strike. One door. · Blitzedo reel</title>
+<style>
+  @font-face { font-family: "Inter Tight"; src: url("../../assets/fonts/inter-tight-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-style: normal; }
+  html, body { margin: 0; background: #090A08; overflow: hidden; }
+  #stage { position: relative; width: 1080px; height: 1920px; transform-origin: 0 0; overflow: hidden; background: #090A08; }
+  canvas#gl { position: absolute; inset: 0; width: 1080px; height: 1920px; display: block; }
+  #flash { position: absolute; inset: 0; background: #FFF4E8; opacity: 0; pointer-events: none; }
+
+  #type { position: absolute; inset: 0; pointer-events: none; font-family: "Inter Tight", "Inter", system-ui, sans-serif; color: #FBF5EB; -webkit-font-smoothing: antialiased; }
+  #type .ch { display: inline-block; will-change: transform; }
+  .cap { position: absolute; left: 84px; top: 226px; font-size: 172px; line-height: 1; letter-spacing: -.045em; white-space: nowrap; font-weight: 700; overflow: hidden; padding: 0 20px .16em 0; text-shadow: 0 0 44px rgba(9,10,8,.55); }
+  .cap .k { font-weight: 300; color: rgba(251,245,235,.8); }
+  .cap .v { font-weight: 800; }
+  .label { position: absolute; left: 84px; top: 1468px; text-shadow: 0 0 30px rgba(9,10,8,.6); }
+  .label small { display: flex; align-items: center; gap: 16px; font-size: 27px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: rgba(251,245,235,.8); }
+  .label i { display: inline-block; width: 18px; height: 18px; }
+  .label b { display: block; margin-top: 16px; font-size: 92px; line-height: .96; font-weight: 700; letter-spacing: -.035em; }
+  #endbg { position: absolute; inset: 0; opacity: 0; background: radial-gradient(rgba(251,245,235,.075) 1.6px, transparent 1.8px) 0 0 / 30px 30px, radial-gradient(ellipse at 20% 100%, rgba(174,18,18,.22), transparent 55%), #090A08; }
+  #end { position: absolute; inset: 0; }
+  #rule { position: absolute; left: 84px; width: 912px; height: 2px; background: rgba(251,245,235,.22); transform-origin: 0 0; opacity: 0; }
+  .head { position: absolute; left: 60px; font-weight: 700; letter-spacing: -.035em; line-height: .86; white-space: nowrap; overflow: hidden; padding: .04em 30px .2em 0; }
+  #tag { position: absolute; left: 84px; margin: 0; font-size: 54px; line-height: 1.22; font-weight: 400; letter-spacing: -.005em; color: rgba(244,240,230,.74); }
+  #tag span { display: block; }
+  #btn { position: absolute; left: 84px; width: 620px; height: 116px; box-sizing: border-box; padding: 0 44px 0 42px; border-radius: 6px; background: #AE1212; display: flex; align-items: center; justify-content: space-between; font-size: 46px; font-weight: 400; color: #FBF5EB; }
+  #url { position: absolute; left: 84px; font-size: 38px; font-weight: 500; color: rgba(244,240,230,.72); }
+</style>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.min.js","three/addons/":"./node_modules/three/examples/jsm/","postprocessing":"./node_modules/postprocessing/build/index.js","gsap":"./node_modules/gsap/index.js","gsap/":"./node_modules/gsap/"}}</script>
+</head>
+<body>
+<div id="stage"><canvas id="gl" width="1080" height="1920"></canvas><div id="type"></div><div id="flash"></div></div>
+<script type="module">
+import {createFilm, T} from './film.js';
+import {createOverlay} from './overlay.js';
+const q = new URLSearchParams(location.search);
+const stage = document.querySelector('#stage');
+const fit = () => { const s = Math.min(innerWidth / 1080, innerHeight / 1920); stage.style.transform = q.has('render') ? 'none' : `scale(${s})`; };
+fit(); addEventListener('resize', fit);
+await document.fonts.load('700 100px "Inter Tight"'); await document.fonts.load('300 100px "Inter Tight"');
+const gl = document.querySelector('#gl'), flash = document.querySelector('#flash');
+const film = await createFilm({canvas: gl, scale: +(q.get('scale') || 1)});
+const flat = film.flatRect();
+const overlay = await createOverlay(document.querySelector('#type'), T, flat);
+const endbgFx = document.querySelector('#endbg');
+window.film = film; window.T = T; window.DURATION = Math.ceil(overlay.duration * 30) / 30;
+window.seek = t => {
+  const handed = t >= T.hand;
+  if (!handed) { const r = film.seek(t); flash.style.opacity = r.whiteFlash.toFixed(3); } else flash.style.opacity = 0;
+  gl.style.visibility = handed ? 'hidden' : 'visible';
+  endbgFx.style.opacity = handed ? 1 : 0;
+  overlay.seek(t);
+  return true;
+};
+window.seek(+(q.get('t') || 0));
+window.ready = true;
+</script>
+</body>
+</html>

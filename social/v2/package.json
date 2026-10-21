@@ -1,0 +1,11 @@
+{
+  "name": "blitzedo-social-v2",
+  "private": true,
+  "type": "module",
+  "description": "Dependencies for the social motion piece (rendering only; the site itself has no build step).",
+  "dependencies": {
+    "gsap": "3.13.0",
+    "postprocessing": "6.37.8",
+    "three": "0.180.0"
+  }
+}

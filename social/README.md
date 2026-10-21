@@ -1,3 +1,5 @@
+> **Current version: [`v2/`](v2/README.md)**, the 3D reel "One pixel. One strike. One door." (`v2/out/blitzedo-one-pixel-one-strike-one-door-9x16.mp4`). The piece below is the first version, built on the site's island, kept for reference.
+
 # Social motion piece: "Light the gate"
 
 A 21.5 s, 1080 x 1920 (9:16) reel for Reels, TikTok and Shorts, made from the site's own island, Chip and wordmark.
